@@ -1,0 +1,15 @@
+version: '3.8'
+
+services:
+  tydom2mqtt:
+    image: fmartinou/tydom2mqtt:latest
+    container_name: tydom2mqtt
+    restart: unless-stopped
+    environment:
+      TYDOM_IP: "192.168.1.X"
+      TYDOM_MAC: "001A25XXXXXX"
+      TYDOM_PASSWORD: "XXXXXX"
+      DELTADORE_LOGIN: "votre_email@exemple.com"
+      DELTADORE_PASSWORD: "votre_mot_de_passe"
+      MQTT_HOST: "172.17.0.1"
+      MQTT_PORT: 1883

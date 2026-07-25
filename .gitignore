@@ -1,0 +1,15 @@
+# Configuration contenant des identifiants et mots de passe secrets
+docker-compose.yml
+
+# Fichier d'état dynamique des volets
+shutter_state.json
+
+# Environnement virtuel et cache Python
+env/
+venv/
+.venv/
+__pycache__/
+*.pyc
+
+# Fichiers temporaires et logs
+*.log
