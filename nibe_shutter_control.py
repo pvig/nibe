@@ -181,8 +181,33 @@ def obtenir_heures_soleil(lat=LATITUDE, lng=LONGITUDE):
 
     return sunrise_dt.strftime('%H:%M'), sunset_dt.strftime('%H:%M')
 
+def obtenir_etat_ciel(lat=LATITUDE, lng=LONGITUDE):
+    """
+    Interroge l'API gratuite Open-Meteo pour connaître l'état du ciel (ensoleillé vs très couvert/pluie).
+    Returns (is_sunny: bool, description: str)
+    """
+    try:
+        url = f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lng}&current_weather=true"
+        req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+        with urllib.request.urlopen(req, timeout=4) as response:
+            data = json.loads(response.read().decode('utf-8'))
+            weather = data.get("current_weather", {})
+            w_code = weather.get("weathercode", 0)
+            
+            # Codes WMO : 0 = Dégagé, 1 & 2 = Peu nuageux (Soleil direct présent)
+            is_sunny = w_code <= 2
+            description = "Ensoleillé / Dégagé" if w_code == 0 else (
+                "Peu nuageux" if w_code in [1, 2] else (
+                    "Très couvert" if w_code == 3 else f"Nuageux/Pluie (code {w_code})"
+                )
+            )
+            return is_sunny, description
+    except Exception as e:
+        print(f"ℹ️ API météo indisponible ({e}) -> Par défaut: Ciel ensoleillé supposé.")
+        return True, "Indisponible (défaut ensoleillé)"
+
 def reguler_volets():
-    """Logique de décision basée sur le soleil, les températures Nibe et l'état mémorisé."""
+    """Logique de décision basée sur le soleil, l'état du ciel, les températures Nibe et l'état mémorisé."""
     maintenant = datetime.datetime.now()
     heure_actuelle = maintenant.strftime('%H:%M')
     date_actuelle = maintenant.strftime('%Y-%m-%d')
@@ -211,17 +236,22 @@ def reguler_volets():
             commandes_a_passer[nom] = "OPEN"
         etat_memoire["last_sunrise_trigger_date"] = date_actuelle
 
-    # 3. Lecture et régulation selon les températures Nibe (pendant la journée)
+    # 3. Lecture et régulation selon les températures Nibe & l'état du ciel
     t_ext, t_int = lire_temp_nibe()
+    ciel_ensoleille, description_ciel = obtenir_etat_ciel()
 
     if t_ext is not None and t_int is not None:
         print(f"🌡️  Température Extérieure (BT1) : {t_ext} °C | Intérieure (BT50) : {t_int} °C")
+        print(f"🌤️  État du ciel : {description_ciel}")
 
-        # Règle thermique : Protection Forte Chaleur
+        # Règle thermique : Protection Forte Chaleur uniquement si le ciel est ensoleillé (rayonnement direct)
         if t_ext >= SEUIL_TEMP_EXT_HAUTE or t_int >= SEUIL_TEMP_INT_HAUTE:
-            print("☀️ Mode Protection Chaleur actif (Priorité thermique).")
-            for nom in ["salon", "bureau", "cuisine", "chambre"]:
-                commandes_a_passer[nom] = "CLOSE"
+            if ciel_ensoleille:
+                print("☀️ Mode Protection Chaleur & Soleil direct actif -> Fermeture des volets pour éviter l'effet de serre.")
+                for nom in ["salon", "bureau", "cuisine", "chambre"]:
+                    commandes_a_passer[nom] = "CLOSE"
+            else:
+                print("☁️ Forte chaleur détectée mais ciel couvert -> Pas de rayonnement solaire direct, volets maintenus pour la lumière naturelle.")
 
         # Règle thermique : Rafraîchissement
         elif t_ext <= SEUIL_TEMP_EXT_BASSE and heure_actuelle < heure_coucher_5m:

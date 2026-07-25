@@ -30,7 +30,7 @@ graph LR
 
 * 🌅 **Lever du soleil (+5 min)** : Ouverture automatique de tous les volets 5 minutes après le lever du soleil.
 * 🌇 **Coucher du soleil (+5 min)** : Fermeture automatique de tous les volets 5 minutes après le coucher du soleil.
-* ☀️ **Protection contre la chaleur** : Dès que l'extérieur dépasse **25 °C** ou que l'intérieur monte à **23.5 °C**, les volets se ferment pour conserver la fraîcheur en journée.
+* ☀️ **Protection intelligente anti-chaleur** : Si la température extérieure dépasse **25 °C** ou si l'intérieur monte à **23.5 °C**, les volets ne se ferment **que si le ciel est ensoleillé (soleil direct)**. Si le ciel est très couvert ou pluvieux, les volets restent ouverts pour profiter de la lumière naturelle.
 * 🍃 **Ouverture automatique** : Lorsque la température extérieure redescend sous **21 °C**, les volets s'ouvrent à nouveau.
 * 🤝 **Respect de l'utilisateur** : Le script mémorise ses actions dans un fichier `shutter_state.json`. S'il a déjà fermé un volet et que vous l'ouvrez manuellement, il ne viendra pas vous contredire !
 * 🔄 **Support des câblages inversés** : Option `INVERT_COVER_WIRING` intégrée si le câblage électrique de vos volets vers le module est inversé (`UP` = fermeture).
