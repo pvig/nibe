@@ -130,9 +130,9 @@ import datetime
 import urllib.request
 import json
 
-# Coordonnées géographiques pour le lever/coucher du soleil (par défaut: France / Nantes)
-LATITUDE = float(os.getenv("LATITUDE", "47.2183"))
-LONGITUDE = float(os.getenv("LONGITUDE", "-1.5536"))
+# Coordonnées géographiques pour le lever/coucher du soleil (par défaut: France / Dol de Bretagne)
+LATITUDE = float(os.getenv("LATITUDE", "48.549"))
+LONGITUDE = float(os.getenv("LONGITUDE", "-1.751"))
 DELAI_SOLEIL_MINUTES = 5  # Décalage de 5 minutes après lever/coucher
 
 def obtenir_heures_soleil(lat=LATITUDE, lng=LONGITUDE):
