@@ -32,9 +32,12 @@ VOLETS = {
 }
 
 # Seuils de température (en °C) pour la protection solaire / confort
-SEUIL_TEMP_EXT_HAUTE = 25.0  # Si T° extérieure > 25°C -> Protection solaire (fermer volets)
+SEUIL_TEMP_EXT_HAUTE = 25.0  # Si T° extérieure > 25°C -> Protection solaire (fermer volets ciblés)
 SEUIL_TEMP_INT_HAUTE = 23.5  # Si T° intérieure > 23.5°C -> Fermer volets exposés
 SEUIL_TEMP_EXT_BASSE = 21.0  # Si T° extérieure < 21°C -> Réouvrir les volets
+
+# Liste des volets spécifiques à fermer en cas de forte chaleur (ex: façades exposées au soleil)
+VOLETS_PROTECTION_CHALEUR = ["salon", "bureau", "cuisine"]
 
 import json
 
@@ -247,8 +250,8 @@ def reguler_volets():
         # Règle thermique : Protection Forte Chaleur uniquement si le ciel est ensoleillé (rayonnement direct)
         if t_ext >= SEUIL_TEMP_EXT_HAUTE or t_int >= SEUIL_TEMP_INT_HAUTE:
             if ciel_ensoleille:
-                print("☀️ Mode Protection Chaleur & Soleil direct actif -> Fermeture des volets pour éviter l'effet de serre.")
-                for nom in ["salon", "bureau", "cuisine", "chambre"]:
+                print(f"☀️ Mode Protection Chaleur & Soleil direct actif -> Fermeture des volets ciblés ({', '.join(VOLETS_PROTECTION_CHALEUR)})...")
+                for nom in VOLETS_PROTECTION_CHALEUR:
                     commandes_a_passer[nom] = "CLOSE"
             else:
                 print("☁️ Forte chaleur détectée mais ciel couvert -> Pas de rayonnement solaire direct, volets maintenus pour la lumière naturelle.")
