@@ -38,6 +38,9 @@ SEUIL_TEMP_EXT_HAUTE = 25.0
 SEUIL_TEMP_INT_HAUTE = 23.5
 SEUIL_TEMP_EXT_BASSE = 21.0
 
+# Délai minimum entre deux mouvements moteurs (en minutes)
+DELAI_MINIMUM_MOTEUR_MINUTES = int(os.getenv("DELAI_MINIMUM_MOTEUR_MINUTES", "30"))
+
 def main():
     nibe = NibeClient(ip=NIBE_IP, port=NIBE_PORT)
     weather = WeatherService(latitude=LATITUDE, longitude=LONGITUDE)
@@ -52,7 +55,8 @@ def main():
         temp_ext_high=SEUIL_TEMP_EXT_HAUTE,
         temp_int_high=SEUIL_TEMP_INT_HAUTE,
         temp_ext_low=SEUIL_TEMP_EXT_BASSE,
-        heat_protection_shutters=VOLETS_PROTECTION_CHALEUR
+        heat_protection_shutters=VOLETS_PROTECTION_CHALEUR,
+        min_motor_interval_minutes=DELAI_MINIMUM_MOTEUR_MINUTES
     )
 
     engine.run()

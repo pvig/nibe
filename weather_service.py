@@ -7,7 +7,7 @@ import math
 import datetime
 import urllib.request
 import json
-from typing import Tuple
+from typing import Tuple, Optional
 
 class WeatherService:
     def __init__(self, latitude: float = 48.549, longitude: float = -1.751, delay_minutes: int = 5):
@@ -66,27 +66,60 @@ class WeatherService:
 
         return sunrise_dt.strftime('%H:%M'), sunset_dt.strftime('%H:%M')
 
-    def is_sky_sunny(self) -> Tuple[bool, str]:
+    def get_solar_radiation_factor(self) -> Tuple[float, str, int]:
         """
-        Interroge l'API Open-Meteo pour vérifier si le ciel est ensoleillé (soleil direct).
-        Retourne (is_sunny: bool, description: str).
+        Calcule le facteur de rayonnement solaire direct non-linéaire (Physique atmosphérique Kasten-Czeplak).
+        Formule : S = (1 - cloud_cover / 100)^2
+        Returns (factor: float, description: str, cloud_cover: int).
         """
         try:
-            url = f"https://api.open-meteo.com/v1/forecast?latitude={self.latitude}&longitude={self.longitude}&current_weather=true"
+            url = f"https://api.open-meteo.com/v1/forecast?latitude={self.latitude}&longitude={self.longitude}&current=temperature_2m,cloud_cover,weather_code"
             req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
             with urllib.request.urlopen(req, timeout=4) as response:
                 data = json.loads(response.read().decode('utf-8'))
-                weather = data.get("current_weather", {})
-                w_code = weather.get("weathercode", 0)
+                current = data.get("current", {})
+                w_code = current.get("weather_code", 0)
+                cloud_cover = int(current.get("cloud_cover", 0))
                 
-                # Codes WMO: 0 = Dégagé, 1 & 2 = Peu nuageux (soleil direct présent)
-                is_sunny = w_code <= 2
-                description = "Ensoleillé / Dégagé" if w_code == 0 else (
-                    "Peu nuageux" if w_code in [1, 2] else (
-                        "Très couvert" if w_code == 3 else f"Nuageux/Pluie (code {w_code})"
-                    )
-                )
-                return is_sunny, description
+                # Modèle physique non-linéaire du rayonnement direct (atténuation quadratique)
+                factor = max(0.0, min(1.0, (1.0 - (cloud_cover / 100.0)) ** 2))
+                
+                if cloud_cover < 20:
+                    desc_texte = "Soleil direct fort"
+                elif cloud_cover < 50:
+                    desc_texte = "Soleil modéré / Éclaircies"
+                elif cloud_cover < 80:
+                    desc_texte = "Soleil très faible / Nuageux"
+                else:
+                    desc_texte = "Très couvert / Aucun rayonnement direct"
+
+                description = f"{desc_texte} (Nuages: {cloud_cover}%, Rayonnement direct: {int(factor * 100)}%)"
+                return factor, description, cloud_cover
         except Exception as e:
-            print(f"ℹ️ API Open-Meteo indisponible ({e}) -> Par défaut: Ciel ensoleillé supposé.")
-            return True, "Indisponible (défaut ensoleillé)"
+            print(f"ℹ️ API Open-Meteo indisponible ({e}) -> Par défaut: Rayonnement direct supposé (100%).")
+            return 1.0, "Indisponible (défaut 100%)", 0
+
+    def get_forecast_next_hours(self, hours: int = 3) -> Tuple[Optional[float], Optional[float], str]:
+        """
+        Récupère les prévisions météo horaires sur les prochaines `hours` heures.
+        Retourne (max_temp_future: float, solar_factor_future: float, description: str).
+        """
+        try:
+            url = f"https://api.open-meteo.com/v1/forecast?latitude={self.latitude}&longitude={self.longitude}&hourly=temperature_2m,cloud_cover,weather_code&forecast_hours={hours + 1}"
+            req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+            with urllib.request.urlopen(req, timeout=4) as response:
+                data = json.loads(response.read().decode('utf-8'))
+                hourly = data.get("hourly", {})
+                temps = hourly.get("temperature_2m", [])
+                clouds = hourly.get("cloud_cover", [])
+                
+                if temps and clouds:
+                    max_temp = max(temps[:hours])
+                    min_cloud = min(clouds[:hours])
+                    solar_factor = max(0.0, min(1.0, (1.0 - (min_cloud / 100.0)) ** 2))
+                    description = f"Prévision +{hours}h -> Max T°: {max_temp}°C, Nuages min: {min_cloud}% (Rayonnement max: {int(solar_factor * 100)}%)"
+                    return max_temp, solar_factor, description
+        except Exception as e:
+            print(f"ℹ️ Impossible de récupérer les prévisions météo ({e})")
+        
+        return None, None, "Prévisions indisponibles"

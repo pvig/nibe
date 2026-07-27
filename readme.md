@@ -28,9 +28,11 @@ graph LR
 
 ## ✨ Ce que fait le script pour vous
 
-* 🌅 **Lever du soleil (+5 min)** : Ouverture automatique de tous les volets 5 minutes après le lever du soleil.
-* 🌇 **Coucher du soleil (+5 min)** : Fermeture automatique de tous les volets 5 minutes après le coucher du soleil.
-* ☀️ **Protection intelligente anti-chaleur ciblée** : En cas de forte chaleur et ciel ensoleillé, seuls les volets ciblés dans la liste `VOLETS_PROTECTION_CHALEUR` (ex: façades exposées au soleil) se ferment pour éviter l'effet de serre, laissant les autres ouverts.
+* 🌅 **Lever du soleil (+5 min)** : Ouverture automatique de tous les volets (en mode Présent comme en mode Absent).
+* 🌇 **Coucher du soleil (+5 min)** : Fermeture automatique de tous les volets **uniquement en mode Absent** (détecté via le registre Nibe 137). En mode Présent, la fermeture nocturne est ignorée pour laisser la main aux occupants.
+* 📊 **Température instantanée & Lissage solaire 1h** : La température extérieure réelle Nibe (BT1) est lue sans retard, tandis que la couverture nuageuse est lissée sur une moyenne glissante de 1 heure (12 échantillons à 5 min d'intervalle) pour neutraliser l'effet des nuages temporaires.
+* 🛡️ **Préservation des moteurs (Cadence paramétrable)** : Les ordres physiques de mouvement vers les moteurs ne sont envoyés qu'au maximum toutes les **30 minutes** (`DELAI_MINIMUM_MOTEUR_MINUTES = 30`), préservant les moteurs de volets.
+* ☀️ **Protection anti-chaleur progressive et douce** : Lorsque la température réelle dépasse **21 °C** (avec soleil direct), la fermeture s'effectue selon une **courbe quadratique douce** (ex: ~95% de lumière conservée à 22°C, 75% à 23°C, 45% à 24°C et fermeture à 25°C). En cas de ciel couvert ou pluvieux, la lumière naturelle est préservée.
 * 🍃 **Ouverture automatique** : Lorsque la température extérieure redescend sous **21 °C**, les volets s'ouvrent à nouveau.
 * 🤝 **Respect de l'utilisateur** : Le script mémorise ses actions dans un fichier `shutter_state.json`. S'il a déjà fermé un volet et que vous l'ouvrez manuellement, il ne viendra pas vous contredire !
 * 🔄 **Support des câblages inversés** : Option `INVERT_COVER_WIRING` intégrée si le câblage électrique de vos volets vers le module est inversé (`UP` = fermeture).

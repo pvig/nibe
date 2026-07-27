@@ -67,7 +67,7 @@ class TydomMqttClient:
         else:
             topic_cmd = None
             topic_pos = f"cover/tydom/{device_id}/set_position"
-            payload_pos = str(action)
+            payload_pos = str(act_str)
 
         if topic_cmd:
             print(f"  ➜ Volet {device_name.capitalize()} -> Topic '{topic_cmd}' = '{payload_cmd}'")

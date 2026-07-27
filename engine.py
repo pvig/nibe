@@ -20,7 +20,8 @@ class ShutterAutomationEngine:
         temp_ext_high: float = 25.0,
         temp_int_high: float = 23.5,
         temp_ext_low: float = 21.0,
-        heat_protection_shutters: Optional[List[str]] = None
+        heat_protection_shutters: Optional[List[str]] = None,
+        min_motor_interval_minutes: int = 30
     ):
         self.nibe = nibe_client or NibeClient()
         self.weather = weather_service or WeatherService()
@@ -31,6 +32,7 @@ class ShutterAutomationEngine:
         self.temp_int_high = temp_int_high
         self.temp_ext_low = temp_ext_low
         self.heat_protection_shutters = heat_protection_shutters or ["salon", "bureau"]
+        self.min_motor_interval_seconds = min_motor_interval_minutes * 60
 
     def run(self) -> None:
         """Exécute une itération de régulation."""
@@ -39,7 +41,12 @@ class ShutterAutomationEngine:
         date_actuelle = maintenant.strftime('%Y-%m-%d')
         print(f"\n--- [{maintenant.strftime('%Y-%m-%d %H:%M:%S')}] Régulation Nibe & Tydom ---")
 
-        # 1. Calcul des heures de soleil (+5 min)
+        # 1. Lecture des températures, du statut de présence Nibe et de la météo
+        t_ext, t_int = self.nibe.get_temperatures()
+        est_absent, val_presence = self.nibe.get_presence_status()
+        facteur_soleil, description_ciel, cloud_cover = self.weather.get_solar_radiation_factor()
+
+        # 2. Calcul des heures de soleil (+5 min)
         heure_lever_5m, heure_coucher_5m = self.weather.get_sun_times()
         print(f"🌅 Lever du soleil (+5 min)  : {heure_lever_5m}")
         print(f"🌇 Coucher du soleil (+5 min) : {heure_coucher_5m}")
@@ -47,62 +54,119 @@ class ShutterAutomationEngine:
         etat_memoire = self.state_store.load()
         shutters_state = etat_memoire.get("shutters", {})
         commandes_a_passer = {}
+        is_sun_event = False
 
-        # 2. Règle du Coucher du Soleil (+5 min) -> Fermeture de tous les volets (1 fois par jour)
+        # 3. Règle du Coucher du Soleil (+5 min) -> Fermeture uniquement si Mode Absent Nibe (Reg 137 > 0)
         if heure_actuelle >= heure_coucher_5m and etat_memoire.get("last_sunset_trigger_date") != date_actuelle:
-            print(f"🌇 Coucher du soleil atteint (+5 min: {heure_coucher_5m}) : Fermeture automatique de tous les volets.")
-            for nom in self.tydom.devices.keys():
-                commandes_a_passer[nom] = "CLOSE"
+            if est_absent:
+                print(f"🌇 Coucher du soleil (+5 min: {heure_coucher_5m}) en Mode Absent : Fermeture automatique de tous les volets.")
+                for nom in self.tydom.devices.keys():
+                    commandes_a_passer[nom] = "CLOSE"
+                is_sun_event = True
+            else:
+                print(f"🌇 Coucher du soleil (+5 min: {heure_coucher_5m}) en Mode Présent : Fermeture nocturne automatique ignorée.")
             etat_memoire["last_sunset_trigger_date"] = date_actuelle
 
-        # 3. Règle du Lever du Soleil (+5 min) -> Ouverture de tous les volets (1 fois par jour)
+        # 4. Règle du Lever du Soleil (+5 min) -> Ouverture de tous les volets (Mode Présent & Mode Absent)
         elif heure_actuelle >= heure_lever_5m and heure_actuelle < heure_coucher_5m and etat_memoire.get("last_sunrise_trigger_date") != date_actuelle:
-            print(f"🌅 Lever du soleil atteint (+5 min: {heure_lever_5m}) : Ouverture automatique de tous les volets.")
+            print(f"🌅 Lever du soleil (+5 min: {heure_lever_5m}) : Ouverture automatique de tous les volets.")
             for nom in self.tydom.devices.keys():
                 commandes_a_passer[nom] = "OPEN"
             etat_memoire["last_sunrise_trigger_date"] = date_actuelle
+            is_sun_event = True
 
-        # 4. Lecture des températures et météo (pendant la journée)
-        t_ext, t_int = self.nibe.get_temperatures()
-        ciel_ensoleille, description_ciel = self.weather.is_sky_sunny()
-
+        # 5. Régulation thermique de journée
         if t_ext is not None and t_int is not None:
-            print(f"🌡️  Température Extérieure (BT1) : {t_ext} °C | Intérieure (BT50) : {t_int} °C")
-            print(f"🌤️  État du ciel : {description_ciel}")
+            # Enregistrement de l'échantillon toutes les 5 min dans l'historique glissant (12 échantillons = 1h)
+            etat_memoire = self.state_store.add_sample(etat_memoire, t_ext, t_int, cloud_cover)
+            samples = etat_memoire.get("samples", [])
 
-            # Règle thermique : Protection Forte Chaleur uniquement si le ciel est ensoleillé (rayonnement direct)
-            if t_ext >= self.temp_ext_high or t_int >= self.temp_int_high:
-                if ciel_ensoleille:
-                    print(f"☀️ Mode Protection Chaleur & Soleil direct actif -> Fermeture des volets ciblés ({', '.join(self.heat_protection_shutters)})...")
+            # Calcul des moyennes lissées sur la dernière heure d'échantillonnage
+            t_ext_lisse = sum(s["t_ext"] for s in samples) / len(samples)
+            cloud_lisse = sum(s["cloud_cover"] for s in samples) / len(samples)
+            facteur_soleil_lisse = max(0.0, min(1.0, (1.0 - (cloud_lisse / 100.0)) ** 2))
+
+            str_presence = f"🏠 Mode Présent (Reg 137 = {val_presence})" if not est_absent else f"✈️ Mode Absent / Vacances (Reg 137 = {val_presence})"
+            print(f"🌡️  T° Ext instantanée (BT1) : {t_ext} °C | Intérieure (BT50) : {t_int} °C | {str_presence}")
+            print(f"🌤️  Nuages instantanés : {cloud_cover}% | Lissé sur 1h ({len(samples)} mesures) : {int(cloud_lisse)}% (Rayonnement lissé: {int(facteur_soleil_lisse * 100)}%)")
+
+            # La température utilise la mesure réelle instantanée (pas de retard), seul l'ensoleillement est lissé sur 1h
+            t_decision = t_ext
+            facteur_soleil_decision = facteur_soleil_lisse
+
+            # 1. Progression dans l'intervalle de température [temp_ext_low, temp_ext_high]
+            if t_decision <= self.temp_ext_low:
+                progress = 0.0
+            elif t_decision >= self.temp_ext_high:
+                progress = 1.0
+            else:
+                progress = (t_decision - self.temp_ext_low) / (self.temp_ext_high - self.temp_ext_low)
+
+            # 2. Besoins thermiques doux (courbe quadratique progress^2)
+            besoin_thermique = progress ** 2
+
+            # 3. Taux de fermeture effectif = Besoin thermique doux x Facteur de rayonnement direct lissé S
+            taux_fermeture_reel = besoin_thermique * facteur_soleil_decision
+            ratio_pct = int(taux_fermeture_reel * 100)
+
+            # Position d'ouverture cible (100 = ouvert, 0 = fermé, pas de 5%)
+            pos_ouvert = round((1.0 - taux_fermeture_reel) * 100 / 5.0) * 5
+            if pos_ouvert >= 95:
+                pos_target_str = "OPEN"
+            elif pos_ouvert <= 5:
+                pos_target_str = "CLOSE"
+            else:
+                pos_target_str = str(int(pos_ouvert))
+
+            # 5. Régulation thermique uniquement pendant la journée (entre le lever et le coucher du soleil)
+            is_daytime = (heure_actuelle >= heure_lever_5m and heure_actuelle < heure_coucher_5m)
+
+            if is_daytime:
+                if t_decision > self.temp_ext_low:
+                    print(f"☀️ Protection Solaire Lissée ({ratio_pct}% fermé, ouverture cible: {pos_target_str}) pour les volets ciblés ({', '.join(self.heat_protection_shutters)}).")
                     for nom in self.heat_protection_shutters:
-                        commandes_a_passer[nom] = "CLOSE"
+                        commandes_a_passer[nom] = pos_target_str
                 else:
-                    print("☁️ Forte chaleur détectée mais ciel couvert -> Pas de rayonnement solaire direct, volets maintenus pour la lumière naturelle.")
-
-            # Règle thermique : Rafraîchissement
-            elif t_ext <= self.temp_ext_low and heure_actuelle < heure_coucher_5m:
-                print("🍃 Mode Rafraîchissement actif.")
-                for nom in self.tydom.devices.keys():
-                    commandes_a_passer[nom] = "OPEN"
+                    print("🍃 Mode Rafraîchissement diurne actif (T° ext <= 21°C).")
+                    for nom in self.tydom.devices.keys():
+                        commandes_a_passer[nom] = "OPEN"
+            else:
+                print("🌙 Période nocturne (Régulation thermique diurne au repos).")
         else:
             print("⚠️ Données Nibe indisponibles pour la régulation thermique.")
 
-        # 5. Application des commandes (Ignorer si identique à la précédente pour laisser le contrôle manuel)
+        # 6. Filtrage d'activation temporisée des moteurs (Préservation des moteurs)
+        import time
+        now_ts = int(time.time())
+        last_motor_action_time = etat_memoire.get("last_motor_action_time", 0)
+        elapsed_since_motor = now_ts - last_motor_action_time
+
+        # Seuls les événements exacts du coucher/lever du soleil autorisent l'activation hors fenêtre temporisée
+        allow_motor_execution = (elapsed_since_motor >= self.min_motor_interval_seconds) or is_sun_event
+
         modifications = False
-        for nom, action_voulue in commandes_a_passer.items():
-            derniere_action = shutters_state.get(nom)
-
-            if derniere_action == action_voulue:
-                print(f"  ℹ️ Volet {nom.capitalize()} : Déjà commandé en '{action_voulue}' précédemment -> Ignoré pour laisser la main à l'utilisateur.")
-            else:
-                print(f"  ⚡ Volet {nom.capitalize()} : Nouvel ordre '{action_voulue}' (précédent: '{derniere_action}')")
-                if self.tydom.send_command(nom, action_voulue):
-                    shutters_state[nom] = action_voulue
-                    modifications = True
-
-        if modifications:
-            etat_memoire["shutters"] = shutters_state
+        if not allow_motor_execution and last_motor_action_time > 0:
+            mins_restantes = max(1, int((self.min_motor_interval_seconds - elapsed_since_motor) / 60))
+            print(f"⏳ Moteurs au repos (dernier déclenchement il y a {int(elapsed_since_motor/60)} min). Échantillon 5 min enregistré. Prochain mouvement autorisé dans ~{mins_restantes} min.")
             self.state_store.save(etat_memoire)
-            print("💾 Nouvel état mémorisé dans 'shutter_state.json'.")
         else:
-            print("✅ Aucun changement d'ordre nécessaire.")
+            for nom, action_voulue in commandes_a_passer.items():
+                derniere_action = shutters_state.get(nom)
+
+                # Si c'est un événement solaire (Lever/Coucher), on force l'envoi physique même si l'état mémorisé était identique
+                if derniere_action == action_voulue and not is_sun_event:
+                    print(f"  ℹ️ Volet {nom.capitalize()} : Déjà commandé en '{action_voulue}' -> Aucun mouvement requis.")
+                else:
+                    print(f"  ⚡ Volet {nom.capitalize()} : Nouvel ordre '{action_voulue}' (précédent: '{derniere_action}')")
+                    if self.tydom.send_command(nom, action_voulue):
+                        shutters_state[nom] = action_voulue
+                        modifications = True
+
+            if modifications:
+                etat_memoire["shutters"] = shutters_state
+                etat_memoire["last_motor_action_time"] = now_ts
+                self.state_store.save(etat_memoire)
+                print("💾 Nouvel état et horodatage moteur enregistrés.")
+            else:
+                self.state_store.save(etat_memoire)
+                print("✅ Échantillon enregistré. Aucun changement d'ordre nécessaire.")

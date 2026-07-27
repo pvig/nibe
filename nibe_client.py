@@ -12,6 +12,7 @@ class NibeClient:
         self.port = port
         self.reg_temp_ext = 1   # Sonde extérieure BT1
         self.reg_temp_int = 116 # Sonde d'ambiance intérieure BT50
+        self.reg_presence = 137 # Statut de présence / vacances Nibe
 
     def get_temperatures(self) -> Tuple[Optional[float], Optional[float]]:
         """
@@ -33,3 +34,27 @@ class NibeClient:
             return t_ext, t_int
         finally:
             client.close()
+
+    def get_presence_status(self) -> Tuple[bool, int]:
+        """
+        Lit le statut de présence/absence Nibe (Registre Input 137).
+        Retourne (est_absent: bool, valeur_brute: int).
+        - 0   : Présent (Home)
+        - > 0 : Absent / Vacances (Away)
+        """
+        client = ModbusTcpClient(self.ip, port=self.port)
+        if not client.connect():
+            return False, 0
+
+        try:
+            res = client.read_input_registers(address=self.reg_presence, count=1)
+            if not res.isError():
+                raw_val = res.registers[0]
+                is_away = (raw_val != 0)
+                return is_away, raw_val
+        except Exception as e:
+            print(f"⚠️ Erreur de lecture de la présence Nibe (Reg {self.reg_presence}): {e}")
+        finally:
+            client.close()
+
+        return False, 0
