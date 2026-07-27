@@ -21,6 +21,7 @@ class ShutterAutomationEngine:
         temp_int_high: float = 23.5,
         temp_ext_low: float = 21.0,
         heat_protection_shutters: Optional[List[str]] = None,
+        canicule_protection_shutters: Optional[List[str]] = None,
         min_motor_interval_minutes: int = 30
     ):
         self.nibe = nibe_client or NibeClient()
@@ -32,6 +33,7 @@ class ShutterAutomationEngine:
         self.temp_int_high = temp_int_high
         self.temp_ext_low = temp_ext_low
         self.heat_protection_shutters = heat_protection_shutters or ["salon", "bureau"]
+        self.canicule_protection_shutters = canicule_protection_shutters or ["salon", "bureau", "chambre"]
         self.min_motor_interval_seconds = min_motor_interval_minutes * 60
 
     def run(self) -> None:
@@ -111,12 +113,24 @@ class ShutterAutomationEngine:
             # 2. Besoins thermiques doux (courbe quadratique progress^2)
             besoin_thermique = progress ** 2
 
-            # 3. Taux de fermeture effectif = Besoin thermique doux x Facteur de rayonnement direct lissé S
-            taux_fermeture_reel = besoin_thermique * facteur_soleil_decision
-            ratio_pct = int(taux_fermeture_reel * 100)
+            # 3. Taux de fermeture solaire effectif
+            taux_fermeture_solaire = besoin_thermique * facteur_soleil_decision
 
-            # Position d'ouverture cible (100 = ouvert, 0 = fermé, pas de 5%)
-            pos_ouvert = round((1.0 - taux_fermeture_reel) * 100 / 5.0) * 5
+            # 4. Protection conductive canicule (T° ext > 28°C)
+            # Au-dessus de 28°C, la conduction de l'air chaud impose une fermeture progressive même à l'ombre
+            if t_decision > 28.0:
+                prog_canicule = min(1.0, (t_decision - 28.0) / (33.0 - 28.0))
+                taux_canicule = prog_canicule ** 2
+                print(f"🔥 Mode Canicule Actif (T° ext = {t_decision}°C > 28°C) -> Fermeture conductive de protection : {int(taux_canicule * 100)}%")
+            else:
+                taux_canicule = 0.0
+
+            # Taux de fermeture final pour les volets de protection (max entre solaire et canicule)
+            taux_fermeture_final = max(taux_fermeture_solaire, taux_canicule)
+            ratio_pct = int(taux_fermeture_final * 100)
+
+            # Position d'ouverture cible pour les volets ciblés (pas de 5%)
+            pos_ouvert = round((1.0 - taux_fermeture_final) * 100 / 5.0) * 5
             if pos_ouvert >= 95:
                 pos_target_str = "OPEN"
             elif pos_ouvert <= 5:
@@ -124,11 +138,27 @@ class ShutterAutomationEngine:
             else:
                 pos_target_str = str(int(pos_ouvert))
 
+            # Position d'ouverture canicule pour les autres volets
+            pos_canicule_ouvert = round((1.0 - taux_canicule) * 100 / 5.0) * 5
+            if pos_canicule_ouvert >= 95:
+                pos_canicule_str = "OPEN"
+            elif pos_canicule_ouvert <= 5:
+                pos_canicule_str = "CLOSE"
+            else:
+                pos_canicule_str = str(int(pos_canicule_ouvert))
+
             # 5. Régulation thermique uniquement pendant la journée (entre le lever et le coucher du soleil)
             is_daytime = (heure_actuelle >= heure_lever_5m and heure_actuelle < heure_coucher_5m)
 
             if is_daytime:
-                if t_decision > self.temp_ext_low:
+                if t_decision > 28.0:
+                    print(f"🔥 Canicule (>28°C) : Protection conductive appliquée aux volets canicule ({', '.join(self.canicule_protection_shutters)}). Les volets des plantes (ex: cuisine) restent ouverts.")
+                    for nom in self.canicule_protection_shutters:
+                        if nom in self.heat_protection_shutters:
+                            commandes_a_passer[nom] = pos_target_str
+                        else:
+                            commandes_a_passer[nom] = pos_canicule_str
+                elif t_decision > self.temp_ext_low:
                     print(f"☀️ Protection Solaire Lissée ({ratio_pct}% fermé, ouverture cible: {pos_target_str}) pour les volets ciblés ({', '.join(self.heat_protection_shutters)}).")
                     for nom in self.heat_protection_shutters:
                         commandes_a_passer[nom] = pos_target_str

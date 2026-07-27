@@ -33,6 +33,9 @@ VOLETS = {
 # Volets spécifiques concernés par la fermeture anti-chaleur en journée
 VOLETS_PROTECTION_CHALEUR = ["salon", "bureau"]
 
+# Volets supplémentaires fermés en partie lors de fortes canicules (> 28°C)
+VOLETS_PROTECTION_CANICULE = ["salon", "bureau", "chambre"]
+
 # Seuils thermiques (°C)
 SEUIL_TEMP_EXT_HAUTE = 25.0
 SEUIL_TEMP_INT_HAUTE = 23.5
@@ -56,6 +59,7 @@ def main():
         temp_int_high=SEUIL_TEMP_INT_HAUTE,
         temp_ext_low=SEUIL_TEMP_EXT_BASSE,
         heat_protection_shutters=VOLETS_PROTECTION_CHALEUR,
+        canicule_protection_shutters=VOLETS_PROTECTION_CANICULE,
         min_motor_interval_minutes=DELAI_MINIMUM_MOTEUR_MINUTES
     )
 
