@@ -66,6 +66,49 @@ class WeatherService:
 
         return sunrise_dt.strftime('%H:%M'), sunset_dt.strftime('%H:%M')
 
+    def get_solar_position(self, dt: Optional[datetime.datetime] = None) -> Tuple[float, float, bool]:
+        """
+        Calcule l'élévation (°) et l'azimut (°) du soleil ainsi que l'exposition directe des baies vitrées.
+        Fenêtre d'exposition avec marge de sécurité : Azimut entre 85° et 240°, élévation >= 10°.
+        Retourne (elevation: float, azimuth: float, is_exposed: bool).
+        """
+        now = dt or datetime.datetime.now()
+        day_of_year = now.timetuple().tm_yday
+
+        # Déclinaison solaire en degrés
+        declination = 23.45 * math.sin(math.radians((360 / 365) * (day_of_year - 81)))
+
+        # Équation du temps (minutes)
+        b = math.radians((360 / 364) * (day_of_year - 81))
+        eot = 9.87 * math.sin(2 * b) - 7.53 * math.cos(b) - 1.5 * math.sin(b)
+
+        # Heure solaire locale
+        local_time_hours = now.hour + now.minute / 60.0 + now.second / 3600.0
+        tz_offset = now.astimezone().utcoffset().total_seconds() / 3600.0 if now.tzinfo else 2.0
+        utc_time_hours = local_time_hours - tz_offset
+
+        solar_time = utc_time_hours + (self.longitude / 15.0) + (eot / 60.0)
+        hour_angle = (solar_time - 12.0) * 15.0 # degrés
+
+        lat_rad = math.radians(self.latitude)
+        dec_rad = math.radians(declination)
+        ha_rad = math.radians(hour_angle)
+
+        # Élévation solaire
+        sin_elevation = math.sin(lat_rad) * math.sin(dec_rad) + math.cos(lat_rad) * math.cos(dec_rad) * math.cos(ha_rad)
+        elevation = math.degrees(math.asin(max(-1.0, min(1.0, sin_elevation))))
+
+        # Azimut solaire (0°=Nord, 90°=Est, 180°=Sud, 270°=Ouest)
+        cos_azimuth = (math.sin(dec_rad) * math.cos(lat_rad) - math.cos(dec_rad) * math.sin(lat_rad) * math.cos(ha_rad)) / math.cos(math.radians(elevation))
+        azimuth = math.degrees(math.acos(max(-1.0, min(1.0, cos_azimuth))))
+        if hour_angle > 0:
+            azimuth = 360.0 - azimuth
+
+        # Fenêtre d'exposition directe avec marge de sécurité : Azimut dans [85°, 240°] et élévation >= 10°
+        is_exposed = (elevation >= 10.0) and (85.0 <= azimuth <= 240.0)
+
+        return round(elevation, 1), round(azimuth, 1), is_exposed
+
     def get_solar_radiation_factor(self) -> Tuple[float, str, int]:
         """
         Calcule le facteur de rayonnement solaire direct non-linéaire (Physique atmosphérique Kasten-Czeplak).

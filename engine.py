@@ -90,9 +90,15 @@ class ShutterAutomationEngine:
             print(f"🌡️  T° Ext instantanée (BT1) : {t_ext} °C | Intérieure (BT50) : {t_int} °C | {str_presence}")
             print(f"🌤️  Nuages instantanés : {cloud_cover}% | Lissé sur 1h ({len(samples)} mesures) : {int(cloud_lisse)}% (Rayonnement lissé: {int(facteur_soleil_lisse * 100)}%)")
 
+            # Calcul de la position astronomique du soleil (Azimut & Élévation)
+            elev_soleil, azim_soleil, facade_exposee = self.weather.get_solar_position()
+            str_exposition = "Façade Exposée au Soleil Direct" if facade_exposee else "Façade à l'Ombre (Soleil Hors Fenêtre)"
+            print(f"🧭 Position Solaire -> Élévation: {elev_soleil}° | Azimut: {azim_soleil}° ({str_exposition})")
+
             # La température utilise la mesure réelle instantanée (pas de retard), seul l'ensoleillement est lissé sur 1h
             t_decision = t_ext
-            facteur_soleil_decision = facteur_soleil_lisse
+            # Si le soleil est hors de la fenêtre d'exposition directe (Azimut [85°, 240°] et Élévation >= 10°), l'impact direct est nul
+            facteur_soleil_decision = facteur_soleil_lisse if facade_exposee else 0.0
 
             # 1. Progression dans l'intervalle de température [temp_ext_low, temp_ext_high]
             if t_decision <= self.temp_ext_low:
