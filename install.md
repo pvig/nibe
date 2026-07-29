@@ -96,6 +96,37 @@ Ajoutez le script dans le `crontab` du Raspberry Pi pour une vérification autom
 
 ---
 
+## 6. Service Systemd du Serveur Web d'Historique
+
+Pour que le serveur web tourne en tâche de fond et redémarre automatiquement au démarrage du Raspberry Pi, vous pouvez créer un service `systemd` :
+
+```bash
+sudo bash -c 'cat <<EOF > /etc/systemd/system/dominibe-web.service
+[Unit]
+Description=Serveur Web Nibe & Tydom Automation
+After=network.target
+
+[Service]
+Type=simple
+User=pi
+WorkingDirectory=/home/pi/nibe
+ExecStart=/usr/bin/python3 /home/pi/nibe/server.py
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+EOF'
+
+sudo systemctl daemon-reload
+sudo systemctl enable dominibe-web.service
+sudo systemctl start dominibe-web.service
+```
+
+Vérifiez ensuite son état avec `sudo systemctl status dominibe-web.service`. Le tableau de bord est alors accessible 24/7 sur **`http://<IP_DU_RASPBERRY>:8080`**.
+
+---
+
 ## ⚙️ Notes importantes de configuration
 
 * **Fuseau horaire du Pi** : Assurez-vous que le Pi est réglé sur l'heure française (`sudo timedatectl set-timezone Europe/Paris`) pour le calcul exact des heures de soleil (+5 min).

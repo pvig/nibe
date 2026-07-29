@@ -95,15 +95,39 @@ Chaque installation domotique possède ses propres noms et identifiants de volet
   ```
 * **Lancer la régulation automatique** : `python3 nibe_shutter_control.py`
 
+### 5. Démarrer le Serveur Web d'Historique
+
+Pour consulter l'historique des températures et des ouvertures de volets sur votre réseau local :
+
+```bash
+python3 server.py
+```
+
+Ouvrez ensuite votre navigateur sur **`http://<IP_DU_RASPBERRY>:8080`** (ou `http://raspberrypi.local:8080`).
+
 ---
 
-## ⏰ Automatisation avec Cron
+## 🌐 Serveur Web & Historique SQLite
 
-Pour laisser le Raspberry Pi gérer tout ça silencieusement, ajoutez une tâche Cron (par exemple toutes les 5 minutes) avec `crontab -e` :
+Un serveur web autonome ultra-léger et zéro dépendance est inclus (`server.py`). Il enregistre à chaque passage de la régulation (`nibe_shutter_control.py`) une ligne dans la base SQLite locale `history.db`.
 
-```crontab
-*/5 * * * * python3 /home/pi/nibe/nibe_shutter_control.py > /dev/null 2>&1
-```
+Le tableau de bord interactif vous permet de :
+* 🌡️ Visualiser les courbes de températures extérieure (Nibe BT1) et intérieure (Nibe BT50).
+* 🌤️ Suivre la couverture nuageuse et l'azimut/élévation du soleil.
+* 🪟 Suivre l'historique de fermeture/ouverture de tous vos volets (Salon, Bureau, Cuisine, Chambre...).
+* ⚡ Consulter le journal horodaté des ordres envoyés à Tydom via MQTT.
+
+---
+
+## ⏰ Automatisation avec Cron & Systemd
+
+1. **Régulation toutes les 5 minutes (`crontab -e`)** :
+   ```crontab
+   */5 * * * * python3 /home/pi/nibe/nibe_shutter_control.py > /dev/null 2>&1
+   ```
+
+2. **Serveur Web en tâche de fond (Service systemd)** :
+   Consultez [install.md](install.md) pour créer le service `dominibe-web.service`.
 
 ---
 

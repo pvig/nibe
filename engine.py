@@ -9,6 +9,7 @@ from nibe_client import NibeClient
 from weather_service import WeatherService
 from tydom_client import TydomMqttClient
 from state_store import StateStore
+from db_logger import HistoryDatabase
 
 class ShutterAutomationEngine:
     def __init__(
@@ -17,6 +18,7 @@ class ShutterAutomationEngine:
         weather_service: Optional[WeatherService] = None,
         tydom_client: Optional[TydomMqttClient] = None,
         state_store: Optional[StateStore] = None,
+        db_logger: Optional[HistoryDatabase] = None,
         temp_ext_high: float = 25.0,
         temp_int_high: float = 23.5,
         temp_ext_low: float = 21.0,
@@ -28,6 +30,7 @@ class ShutterAutomationEngine:
         self.weather = weather_service or WeatherService()
         self.tydom = tydom_client or TydomMqttClient()
         self.state_store = state_store or StateStore()
+        self.db_logger = db_logger or HistoryDatabase()
         
         self.temp_ext_high = temp_ext_high
         self.temp_int_high = temp_int_high
@@ -168,8 +171,12 @@ class ShutterAutomationEngine:
                         commandes_a_passer[nom] = "OPEN"
             else:
                 print("🌙 Période nocturne (Régulation thermique diurne au repos).")
+                elev_soleil, azim_soleil, facade_exposee = self.weather.get_solar_position()
+                taux_fermeture_final = 0.0
         else:
             print("⚠️ Données Nibe indisponibles pour la régulation thermique.")
+            elev_soleil, azim_soleil, facade_exposee = self.weather.get_solar_position()
+            taux_fermeture_final = 0.0
 
         # 6. Filtrage d'activation temporisée des moteurs (Préservation des moteurs)
         import time
@@ -197,6 +204,12 @@ class ShutterAutomationEngine:
                     if self.tydom.send_command(nom, action_voulue):
                         shutters_state[nom] = action_voulue
                         modifications = True
+                        self.db_logger.log_action(
+                            shutter_name=nom,
+                            action=action_voulue,
+                            previous_state=str(derniere_action or ""),
+                            reason="Lever/Coucher Soleil" if is_sun_event else "Régulation thermique"
+                        )
 
             if modifications:
                 etat_memoire["shutters"] = shutters_state
@@ -206,3 +219,33 @@ class ShutterAutomationEngine:
             else:
                 self.state_store.save(etat_memoire)
                 print("✅ Échantillon enregistré. Aucun changement d'ordre nécessaire.")
+
+        # 7. Historisation SQLite
+        try:
+            elev_s = elev_soleil if 'elev_soleil' in locals() else 0.0
+            azim_s = azim_soleil if 'azim_soleil' in locals() else 0.0
+            facade_exp = facade_exposee if 'facade_exposee' in locals() else False
+            taux_f = taux_fermeture_final if 'taux_fermeture_final' in locals() else 0.0
+            c_cover = cloud_cover if 'cloud_cover' in locals() else 0
+            f_soleil = facteur_soleil if 'facteur_soleil' in locals() else 0.0
+            is_canicule = (t_ext is not None) and (t_ext > 28.0)
+            event_lbl = "SUNSET" if (is_sun_event and "CLOSE" in commandes_a_passer.values()) else ("SUNRISE" if is_sun_event else ("CANICULE" if is_canicule else "REGULAR"))
+
+            self.db_logger.log_run(
+                t_ext=t_ext,
+                t_int=t_int,
+                cloud_cover=c_cover,
+                facteur_soleil=f_soleil,
+                elev_soleil=elev_s,
+                azim_soleil=azim_s,
+                facade_exposee=facade_exp,
+                est_absent=est_absent,
+                mode_canicule=is_canicule,
+                taux_fermeture=taux_f,
+                shutters=shutters_state,
+                event_type=event_lbl,
+                action_summary=f"Moteurs: {'Actifs' if modifications else 'Repos'}"
+            )
+        except Exception as e:
+            print(f"⚠️ Erreur lors de l'enregistrement de l'historique SQLite : {e}")
+

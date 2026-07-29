@@ -1,0 +1,816 @@
+<!DOCTYPE html>
+<html lang="fr" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🏡 Dominibe - Régulation Nibe & Volets Tydom</title>
+    <!-- Google Fonts Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --bg-main: #0f172a;
+            --bg-card: rgba(30, 41, 59, 0.75);
+            --border-card: rgba(255, 255, 255, 0.08);
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --accent-orange: #f97316;
+            --accent-blue: #38bdf8;
+            --accent-green: #22c55e;
+            --accent-purple: #a855f7;
+            --accent-yellow: #eab308;
+            --accent-pink: #ec4899;
+            --accent-cyan: #06b6d4;
+            --accent-red: #ef4444;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-main);
+            color: var(--text-primary);
+            min-height: 100vh;
+            padding: 1.5rem;
+            background-image: 
+                radial-gradient(at 0% 0%, rgba(56, 189, 248, 0.08) 0px, transparent 50%),
+                radial-gradient(at 100% 100%, rgba(249, 115, 22, 0.08) 0px, transparent 50%);
+            background-attachment: fixed;
+        }
+
+        .container {
+            max-width: 1350px;
+            margin: 0 auto;
+        }
+
+        /* Header */
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 1rem;
+            margin-bottom: 2rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid var(--border-card);
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .brand h1 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #38bdf8, #f97316);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .range-selector select {
+            background: var(--bg-card);
+            color: var(--text-primary);
+            border: 1px solid var(--border-card);
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+            font-size: 0.875rem;
+            outline: none;
+            cursor: pointer;
+        }
+
+        .btn-refresh {
+            background: rgba(56, 189, 248, 0.15);
+            color: var(--accent-blue);
+            border: 1px solid rgba(56, 189, 248, 0.3);
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .btn-refresh:hover {
+            background: rgba(56, 189, 248, 0.25);
+            transform: translateY(-1px);
+        }
+
+        /* Metric Grid */
+        .grid-kpi {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 1.25rem;
+            margin-bottom: 2rem;
+        }
+
+        .card {
+            background: var(--bg-card);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid var(--border-card);
+            border-radius: 1rem;
+            padding: 1.25rem;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+            transition: transform 0.2s ease, border-color 0.2s ease;
+        }
+
+        .card:hover {
+            border-color: rgba(255, 255, 255, 0.2);
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.75rem;
+        }
+
+        .card-title {
+            font-size: 0.85rem;
+            font-weight: 500;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .card-icon {
+            font-size: 1.25rem;
+        }
+
+        .card-value {
+            font-size: 1.85rem;
+            font-weight: 700;
+            margin-bottom: 0.25rem;
+        }
+
+        .card-subtext {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 0.25rem 0.6rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .badge-green { background: rgba(34, 197, 94, 0.2); color: #4ade80; border: 1px solid rgba(34, 197, 94, 0.3); }
+        .badge-orange { background: rgba(249, 115, 22, 0.2); color: #fb923c; border: 1px solid rgba(249, 115, 22, 0.3); }
+        .badge-blue { background: rgba(56, 189, 248, 0.2); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.3); }
+        .badge-purple { background: rgba(168, 85, 247, 0.2); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.3); }
+        .badge-red { background: rgba(239, 68, 68, 0.2); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3); }
+
+        /* Shutters section */
+        .shutters-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .shutter-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-card);
+            border-radius: 0.85rem;
+            padding: 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .shutter-info h4 {
+            font-size: 0.95rem;
+            font-weight: 600;
+            text-transform: capitalize;
+        }
+
+        .shutter-info p {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+        }
+
+        /* Charts section */
+        .charts-container {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .chart-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-card);
+            border-radius: 1rem;
+            padding: 1.25rem;
+        }
+
+        .chart-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+
+        .chart-header h3 {
+            font-size: 1.05rem;
+            font-weight: 600;
+        }
+
+        .chart-wrapper {
+            position: relative;
+            height: 420px;
+            width: 100%;
+        }
+
+        .secondary-charts-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 1.5rem;
+        }
+
+        @media (min-width: 1024px) {
+            .secondary-charts-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+
+        .secondary-chart-wrapper {
+            position: relative;
+            height: 260px;
+            width: 100%;
+        }
+
+        /* Actions table */
+        .actions-section {
+            background: var(--bg-card);
+            border: 1px solid var(--border-card);
+            border-radius: 1rem;
+            padding: 1.25rem;
+            margin-bottom: 2rem;
+        }
+
+        .table-responsive {
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+            font-size: 0.875rem;
+        }
+
+        th {
+            color: var(--text-secondary);
+            font-weight: 600;
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid var(--border-card);
+            text-transform: uppercase;
+            font-size: 0.75rem;
+        }
+
+        td {
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        .footer {
+            text-align: center;
+            color: var(--text-secondary);
+            font-size: 0.8rem;
+            margin-top: 2rem;
+        }
+
+        .chart-tip {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            margin-top: 0.5rem;
+            text-align: right;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header>
+            <div class="brand">
+                <span style="font-size: 1.8rem;">🏡</span>
+                <div>
+                    <h1>Dominibe S735 & Tydom</h1>
+                    <p style="font-size: 0.8rem; color: var(--text-secondary);">Régulation Domotique & Solar Tracking</p>
+                </div>
+            </div>
+
+            <div class="header-actions">
+                <div class="range-selector">
+                    <select id="timeRangeSelect" onchange="loadHistoryData()">
+                        <option value="12">Dernières 12h</option>
+                        <option value="24" selected>Dernières 24h</option>
+                        <option value="48">Dernières 48h</option>
+                        <option value="168">Derniers 7 jours</option>
+                        <option value="336">Derniers 14 jours</option>
+                        <option value="720">Derniers 30 jours</option>
+                        <option value="0">Tout l'historique</option>
+                    </select>
+                </div>
+                <button class="btn-refresh" onclick="refreshAll()">🔄 Actualiser</button>
+            </div>
+        </header>
+
+        <!-- KPI Grid -->
+        <div class="grid-kpi">
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-title">Température Ext. (BT1)</span>
+                    <span class="card-icon">🌡️</span>
+                </div>
+                <div class="card-value" id="valTempExt">-- °C</div>
+                <div class="card-subtext" id="subTempExt">Lecture Modbus PAC</div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-title">Température Int. (BT50)</span>
+                    <span class="card-icon">🏠</span>
+                </div>
+                <div class="card-value" id="valTempInt">-- °C</div>
+                <div class="card-subtext" id="subTempInt">Sonde Ambiance</div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-title">Nuages & Soleil</span>
+                    <span class="card-icon">🌤️</span>
+                </div>
+                <div class="card-value" id="valCloudCover">-- %</div>
+                <div class="card-subtext" id="subSolarFactor">Rayonnement effectif: --%</div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-title">Position Solaire</span>
+                    <span class="card-icon">🧭</span>
+                </div>
+                <div class="card-value" id="valSunPosition">--° / --°</div>
+                <div class="card-subtext" id="subSunFacade">Façade: N/A</div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-title">Mode PAC & Régulation</span>
+                    <span class="card-icon">⚙️</span>
+                </div>
+                <div class="card-value" id="valPresenceMode">--</div>
+                <div class="card-subtext" id="subCaniculeMode">Canicule: Inactive</div>
+            </div>
+        </div>
+
+        <!-- Shutters Live State -->
+        <h3 style="margin-bottom: 1rem; font-weight: 600; font-size: 1.1rem; display: flex; align-items: center; gap: 0.5rem;">
+            <span>🪟</span> État Actuel des Volets
+        </h3>
+        <div class="shutters-grid" id="shuttersGrid">
+            <!-- Injecté en JS -->
+        </div>
+
+        <!-- Master Unified Chart -->
+        <div class="charts-container">
+            <div class="chart-card">
+                <div class="chart-header">
+                    <div>
+                        <h3>📊 Graphique Unifié (Températures, Ensoleillement, Météo & Volets)</h3>
+                        <p style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 0.2rem;">
+                            Superposition synchronisée de tous les facteurs de régulation thermique.
+                        </p>
+                    </div>
+                    <span style="font-size: 0.85rem; font-weight: 600; color: var(--accent-blue);" id="labelMasterChart">24 Heures</span>
+                </div>
+                <div class="chart-wrapper">
+                    <canvas id="masterChart"></canvas>
+                </div>
+                <div class="chart-tip">
+                    💡 <em>Astuce : Cliquez sur les éléments de la légende en haut du graphique pour masquer/afficher une courbe.</em>
+                </div>
+            </div>
+
+            <!-- Secondary Detailed Charts Grid -->
+            <div class="secondary-charts-grid">
+                <div class="chart-card">
+                    <div class="chart-header">
+                        <h3>🌡️ Températures & Nuages Détaillés</h3>
+                    </div>
+                    <div class="secondary-chart-wrapper">
+                        <canvas id="tempChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="chart-card">
+                    <div class="chart-header">
+                        <h3>🪟 Fermeture des Volets Détaillée</h3>
+                    </div>
+                    <div class="secondary-chart-wrapper">
+                        <canvas id="shuttersChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recent Actions Table -->
+        <div class="actions-section">
+            <h3 style="margin-bottom: 1rem; font-weight: 600; font-size: 1.1rem; display: flex; align-items: center; gap: 0.5rem;">
+                <span>⚡</span> Journal des Ordres Moteurs Émis
+            </h3>
+            <div class="table-responsive">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Date & Heure</th>
+                            <th>Volet</th>
+                            <th>Ordre Envoyé</th>
+                            <th>Précédent</th>
+                            <th>Raison / Événement</th>
+                        </tr>
+                    </thead>
+                    <tbody id="actionsTableBody">
+                        <tr>
+                            <td colspan="5" style="text-align: center; color: var(--text-secondary);">Chargement...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="footer">
+            Dominibe Automation System &bull; Nibe S735 Modbus & Delta Dore Tydom MQTT
+        </div>
+    </div>
+
+    <script>
+        let masterChart = null;
+        let tempChart = null;
+        let shuttersChart = null;
+
+        async function fetchLive() {
+            try {
+                const res = await fetch('/api/live');
+                const data = await res.json();
+                const live = data.live || {};
+
+                if (live.t_ext !== undefined && live.t_ext !== null) {
+                    document.getElementById('valTempExt').innerText = `${live.t_ext} °C`;
+                }
+                if (live.t_int !== undefined && live.t_int !== null) {
+                    document.getElementById('valTempInt').innerText = `${live.t_int} °C`;
+                }
+
+                if (live.cloud_cover !== undefined) {
+                    document.getElementById('valCloudCover').innerText = `${live.cloud_cover} %`;
+                    const radPct = Math.round((live.facteur_soleil || 0) * 100);
+                    document.getElementById('subSolarFactor').innerText = `Rayonnement: ${radPct}%`;
+                }
+
+                if (live.elev_soleil !== undefined && live.azim_soleil !== undefined) {
+                    document.getElementById('valSunPosition').innerText = `Él: ${live.elev_soleil}° | Az: ${live.azim_soleil}°`;
+                    const exp = live.facade_exposee ? '<span class="badge badge-orange">Exposée Directe</span>' : '<span class="badge badge-blue">À l\'Ombre</span>';
+                    document.getElementById('subSunFacade').innerHTML = `Façade: ${exp}`;
+                }
+
+                if (live.est_absent !== undefined) {
+                    const modeHtml = live.est_absent ? 
+                        '<span class="badge badge-purple">✈️ Mode Absent</span>' : 
+                        '<span class="badge badge-green">🏠 Mode Présent</span>';
+                    document.getElementById('valPresenceMode').innerHTML = modeHtml;
+
+                    const caniculeHtml = live.mode_canicule ? 
+                        '<span class="badge badge-red">🔥 Canicule (>28°C)</span>' : 
+                        'Canicule: Inactive';
+                    document.getElementById('subCaniculeMode').innerHTML = caniculeHtml;
+                }
+
+                // Grid des volets
+                const shutters = live.shutters || {};
+                const shuttersGrid = document.getElementById('shuttersGrid');
+                shuttersGrid.innerHTML = '';
+
+                if (Object.keys(shutters).length === 0) {
+                    shuttersGrid.innerHTML = '<p style="color: var(--text-secondary); font-size: 0.9rem;">Aucun volet synchronisé.</p>';
+                } else {
+                    for (const [name, state] of Object.entries(shutters)) {
+                        let badgeClass = 'badge-blue';
+                        if (state === 'CLOSE') badgeClass = 'badge-orange';
+                        else if (state === 'OPEN') badgeClass = 'badge-green';
+
+                        shuttersGrid.innerHTML += `
+                            <div class="shutter-card">
+                                <div class="shutter-info">
+                                    <h4>${name}</h4>
+                                    <p>Dernier ordre: ${state}</p>
+                                </div>
+                                <span class="badge ${badgeClass}">${state}</span>
+                            </div>
+                        `;
+                    }
+                }
+            } catch (e) {
+                console.error("Erreur chargement live:", e);
+            }
+        }
+
+        async function loadHistoryData() {
+            const hours = document.getElementById('timeRangeSelect').value;
+            const hoursNum = parseInt(hours, 10);
+            
+            let labelText = `${hours}h`;
+            if (hoursNum === 168) labelText = '7 jours';
+            else if (hoursNum === 336) labelText = '14 jours';
+            else if (hoursNum === 720) labelText = '30 jours';
+            else if (hoursNum === 0) labelText = 'Tout l\'historique';
+            document.getElementById('labelMasterChart').innerText = labelText;
+
+            try {
+                const res = await fetch(`/api/history?hours=${hours}`);
+                const history = await res.json();
+
+                const labels = history.map(item => {
+                    if (!item.datetime_iso) return '';
+                    const parts = item.datetime_iso.split(' ');
+                    const dateStr = parts[0] || '';
+                    const timeStr = parts[1] ? parts[1].substring(0, 5) : '';
+                    const dateParts = dateStr.split('-');
+                    const mm = dateParts[1] || '';
+                    const dd = dateParts[2] || '';
+
+                    if (hoursNum > 0 && hoursNum <= 24) {
+                        return timeStr;
+                    } else if (hoursNum > 0 && hoursNum <= 168) {
+                        return `${dd}/${mm} ${timeStr}`;
+                    } else {
+                        return `${dd}/${mm} ${timeStr}`;
+                    }
+                });
+
+                const dataTExt = history.map(item => item.t_ext);
+                const dataTInt = history.map(item => item.t_int);
+                const dataClouds = history.map(item => item.cloud_cover);
+                const dataSolar = history.map(item => Math.round((item.facteur_soleil || 0) * 100));
+
+                // Extract unique shutter names
+                const shutterNames = Array.from(new Set(
+                    history.flatMap(h => h.shutters ? Object.keys(h.shutters) : [])
+                ));
+
+                const shutterColors = {
+                    'salon': '#f97316',
+                    'bureau': '#a855f7',
+                    'cuisine': '#ec4899',
+                    'chambre': '#06b6d4'
+                };
+                const defaultColors = ['#22c55e', '#eab308', '#38bdf8', '#f43f5e'];
+
+                // ----------------------------------------------------
+                // 1. MASTER COMBINED CHART (Everything synchronized)
+                // ----------------------------------------------------
+                const masterDatasets = [
+                    {
+                        label: 'T° Extérieure (°C)',
+                        data: dataTExt,
+                        borderColor: '#f97316',
+                        backgroundColor: 'rgba(249, 115, 22, 0.05)',
+                        borderWidth: 2.5,
+                        tension: 0.3,
+                        fill: false,
+                        yAxisID: 'y'
+                    },
+                    {
+                        label: 'T° Intérieure (°C)',
+                        data: dataTInt,
+                        borderColor: '#38bdf8',
+                        borderDash: [5, 5],
+                        borderWidth: 2,
+                        tension: 0.3,
+                        fill: false,
+                        yAxisID: 'y'
+                    },
+                    {
+                        label: 'Nuages (%)',
+                        data: dataClouds,
+                        borderColor: 'rgba(148, 163, 184, 0.4)',
+                        backgroundColor: 'rgba(148, 163, 184, 0.12)',
+                        borderWidth: 1,
+                        tension: 0.2,
+                        fill: true,
+                        yAxisID: 'y1'
+                    },
+                    {
+                        label: 'Rayonnement Solaire (%)',
+                        data: dataSolar,
+                        borderColor: '#eab308',
+                        backgroundColor: 'rgba(234, 179, 8, 0.05)',
+                        borderWidth: 2,
+                        tension: 0.3,
+                        fill: false,
+                        yAxisID: 'y1'
+                    }
+                ];
+
+                // Append shutter closures to master chart
+                let colorIdx = 0;
+                shutterNames.forEach(name => {
+                    const closurePoints = history.map(h => {
+                        const val = h.shutters ? h.shutters[name] : null;
+                        if (val === 'CLOSE') return 100;
+                        if (val === 'OPEN') return 0;
+                        if (!isNaN(val)) return 100 - parseInt(val);
+                        return null;
+                    });
+                    const color = shutterColors[name.toLowerCase()] || defaultColors[colorIdx++ % defaultColors.length];
+                    masterDatasets.push({
+                        label: `Volet ${name.toUpperCase()} (% Fermé)`,
+                        data: closurePoints,
+                        borderColor: color,
+                        borderWidth: 2,
+                        stepped: true,
+                        fill: false,
+                        yAxisID: 'y1'
+                    });
+                });
+
+                if (masterChart) masterChart.destroy();
+                const ctxMaster = document.getElementById('masterChart').getContext('2d');
+                masterChart = new Chart(ctxMaster, {
+                    type: 'line',
+                    data: { labels: labels, datasets: masterDatasets },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        interaction: { mode: 'index', intersect: false },
+                        scales: {
+                            x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#94a3b8' } },
+                            y: {
+                                type: 'linear',
+                                display: true,
+                                position: 'left',
+                                title: { display: true, text: 'Température (°C)', color: '#f97316', font: { weight: 'bold' } },
+                                grid: { color: 'rgba(255,255,255,0.05)' },
+                                ticks: { color: '#f97316' }
+                            },
+                            y1: {
+                                type: 'linear',
+                                display: true,
+                                position: 'right',
+                                min: 0,
+                                max: 100,
+                                title: { display: true, text: 'Pourcentage (%) - Nuages, Soleil & Volets', color: '#38bdf8', font: { weight: 'bold' } },
+                                grid: { drawOnChartArea: false },
+                                ticks: { color: '#38bdf8' }
+                            }
+                        },
+                        plugins: {
+                            legend: {
+                                position: 'top',
+                                labels: { color: '#f8fafc', padding: 12, font: { size: 12 } }
+                            },
+                            tooltip: {
+                                padding: 10,
+                                cornerRadius: 8
+                            }
+                        }
+                    }
+                });
+
+                // ----------------------------------------------------
+                // 2. SECONDARY DETAILED CHARTS
+                // ----------------------------------------------------
+                // Temp Chart
+                if (tempChart) tempChart.destroy();
+                const ctx1 = document.getElementById('tempChart').getContext('2d');
+                tempChart = new Chart(ctx1, {
+                    type: 'line',
+                    data: {
+                        labels: labels,
+                        datasets: [
+                            { label: 'T° Ext (°C)', data: dataTExt, borderColor: '#f97316', backgroundColor: 'rgba(249, 115, 22, 0.1)', tension: 0.3, fill: true, yAxisID: 'y' },
+                            { label: 'T° Int (°C)', data: dataTInt, borderColor: '#38bdf8', borderDash: [4, 4], tension: 0.3, fill: false, yAxisID: 'y' },
+                            { label: 'Nuages (%)', data: dataClouds, borderColor: '#64748b', backgroundColor: 'rgba(100, 116, 139, 0.05)', tension: 0.2, fill: true, yAxisID: 'y1' }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        interaction: { mode: 'index', intersect: false },
+                        scales: {
+                            x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#94a3b8' } },
+                            y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#f97316' } },
+                            y1: { position: 'right', min: 0, max: 100, grid: { drawOnChartArea: false }, ticks: { color: '#64748b' } }
+                        },
+                        plugins: { legend: { labels: { color: '#f8fafc' } } }
+                    }
+                });
+
+                // Shutters Chart
+                colorIdx = 0;
+                const shutterDatasets = shutterNames.map(name => {
+                    const dataPoints = history.map(h => {
+                        const val = h.shutters ? h.shutters[name] : null;
+                        if (val === 'CLOSE') return 100;
+                        if (val === 'OPEN') return 0;
+                        if (!isNaN(val)) return 100 - parseInt(val);
+                        return null;
+                    });
+                    const color = shutterColors[name.toLowerCase()] || defaultColors[colorIdx++ % defaultColors.length];
+                    return {
+                        label: `Fermeture ${name.toUpperCase()} (%)`,
+                        data: dataPoints,
+                        borderColor: color,
+                        stepped: true,
+                        tension: 0,
+                        fill: false
+                    };
+                });
+
+                if (shuttersChart) shuttersChart.destroy();
+                const ctx2 = document.getElementById('shuttersChart').getContext('2d');
+                shuttersChart = new Chart(ctx2, {
+                    type: 'line',
+                    data: { labels: labels, datasets: shutterDatasets },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#94a3b8' } },
+                            y: { min: 0, max: 100, grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#94a3b8' } }
+                        },
+                        plugins: { legend: { labels: { color: '#f8fafc' } } }
+                    }
+                });
+
+            } catch (e) {
+                console.error("Erreur chargement historique:", e);
+            }
+        }
+
+        async function loadActions() {
+            try {
+                const res = await fetch('/api/actions?limit=50');
+                const actions = await res.json();
+                const tbody = document.getElementById('actionsTableBody');
+                tbody.innerHTML = '';
+
+                if (actions.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: var(--text-secondary);">Aucun ordre enregistré pour le moment.</td></tr>';
+                    return;
+                }
+
+                actions.forEach(act => {
+                    let badgeClass = 'badge-blue';
+                    if (act.action === 'CLOSE') badgeClass = 'badge-orange';
+                    else if (act.action === 'OPEN') badgeClass = 'badge-green';
+
+                    tbody.innerHTML += `
+                        <tr>
+                            <td>${act.datetime_iso}</td>
+                            <td style="text-transform: capitalize; font-weight: 600;">${act.shutter_name}</td>
+                            <td><span class="badge ${badgeClass}">${act.action}</span></td>
+                            <td>${act.previous_state || '-'}</td>
+                            <td>${act.reason || 'Automatique'}</td>
+                        </tr>
+                    `;
+                });
+            } catch (e) {
+                console.error("Erreur chargement actions:", e);
+            }
+        }
+
+        function refreshAll() {
+            fetchLive();
+            loadHistoryData();
+            loadActions();
+        }
+
+        // Chargement initial
+        refreshAll();
+        // Rafraîchissement automatique toutes les 30 secondes
+        setInterval(refreshAll, 30000);
+    </script>
+</body>
+</html>
