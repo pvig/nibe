@@ -45,9 +45,19 @@ class HistoryDatabase:
                     taux_fermeture REAL,
                     shutters_json TEXT,
                     event_type TEXT,
-                    action_summary TEXT
+                    action_summary TEXT,
+                    wind_speed REAL DEFAULT 0.0,
+                    solar_dni REAL DEFAULT 0.0
                 )
             """)
+
+            # Migration douce pour les bases existantes sans ces colonnes
+            cursor.execute("PRAGMA table_info(history)")
+            existing_cols = [row["name"] for row in cursor.fetchall()]
+            if "wind_speed" not in existing_cols:
+                cursor.execute("ALTER TABLE history ADD COLUMN wind_speed REAL DEFAULT 0.0")
+            if "solar_dni" not in existing_cols:
+                cursor.execute("ALTER TABLE history ADD COLUMN solar_dni REAL DEFAULT 0.0")
 
             # Table du journal d'ordres moteurs exécutés
             cursor.execute("""
@@ -81,7 +91,9 @@ class HistoryDatabase:
         taux_fermeture: float,
         shutters: Dict[str, str],
         event_type: str = "REGULAR",
-        action_summary: str = ""
+        action_summary: str = "",
+        wind_speed: float = 0.0,
+        solar_dni: float = 0.0
     ) -> None:
         """Enregistre un point de mesure et l'état des volets."""
         now = datetime.datetime.now()
@@ -96,8 +108,8 @@ class HistoryDatabase:
                         timestamp, datetime_iso, t_ext, t_int, cloud_cover,
                         facteur_soleil, elev_soleil, azim_soleil, facade_exposee,
                         est_absent, mode_canicule, taux_fermeture, shutters_json,
-                        event_type, action_summary
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        event_type, action_summary, wind_speed, solar_dni
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                     (
                         timestamp,
@@ -114,7 +126,9 @@ class HistoryDatabase:
                         round(taux_fermeture, 3),
                         json.dumps(shutters),
                         event_type,
-                        action_summary
+                        action_summary,
+                        round(wind_speed, 1),
+                        round(solar_dni, 1)
                     )
                 )
                 conn.commit()

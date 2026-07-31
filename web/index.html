@@ -8,8 +8,8 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <!-- Chart.js -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- ApexCharts -->
+    <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
     <style>
         :root {
             --bg-main: #0f172a;
@@ -179,7 +179,7 @@
         /* Shutters section */
         .shutters-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
             gap: 1rem;
             margin-bottom: 2rem;
         }
@@ -190,8 +190,16 @@
             border-radius: 0.85rem;
             padding: 1rem;
             display: flex;
+            flex-direction: column;
+            align-items: stretch;
+            justify-content: space-between;
+        }
+
+        .shutter-header {
+            display: flex;
             align-items: center;
             justify-content: space-between;
+            width: 100%;
         }
 
         .shutter-info h4 {
@@ -203,6 +211,63 @@
         .shutter-info p {
             font-size: 0.75rem;
             color: var(--text-secondary);
+        }
+
+        .shutter-controls {
+            display: flex;
+            gap: 0.35rem;
+            margin-top: 0.75rem;
+            width: 100%;
+        }
+
+        .btn-shutter {
+            flex: 1;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border-card);
+            color: var(--text-primary);
+            padding: 0.35rem 0.5rem;
+            border-radius: 0.4rem;
+            font-size: 0.75rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.25rem;
+        }
+
+        .btn-shutter:hover {
+            background: rgba(56, 189, 248, 0.2);
+            border-color: rgba(56, 189, 248, 0.4);
+            transform: translateY(-1px);
+        }
+
+        .btn-shutter-open:hover { background: rgba(34, 197, 94, 0.2); border-color: rgba(34, 197, 94, 0.4); color: #4ade80; }
+        .btn-shutter-close:hover { background: rgba(249, 115, 22, 0.2); border-color: rgba(249, 115, 22, 0.4); color: #fb923c; }
+        .btn-shutter-stop:hover { background: rgba(239, 68, 68, 0.2); border-color: rgba(239, 68, 68, 0.4); color: #f87171; }
+
+        .global-actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .btn-global {
+            background: rgba(56, 189, 248, 0.1);
+            border: 1px solid rgba(56, 189, 248, 0.25);
+            color: var(--text-primary);
+            padding: 0.4rem 0.8rem;
+            border-radius: 0.5rem;
+            font-size: 0.8rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .btn-global:hover {
+            background: rgba(56, 189, 248, 0.25);
+            border-color: rgba(56, 189, 248, 0.5);
+            transform: translateY(-1px);
         }
 
         /* Charts section */
@@ -233,7 +298,6 @@
         }
 
         .chart-wrapper {
-            position: relative;
             height: 420px;
             width: 100%;
         }
@@ -251,9 +315,20 @@
         }
 
         .secondary-chart-wrapper {
-            position: relative;
-            height: 260px;
+            height: 300px;
             width: 100%;
+        }
+
+        /* ApexCharts dark overrides */
+        .apexcharts-toolbar {
+            z-index: 10;
+        }
+        .apexcharts-menu {
+            background: #1e293b !important;
+            border-color: rgba(255,255,255,0.1) !important;
+        }
+        .apexcharts-menu-item:hover {
+            background: rgba(56,189,248,0.15) !important;
         }
 
         /* Actions table */
@@ -334,6 +409,7 @@
                     </select>
                 </div>
                 <button class="btn-refresh" onclick="refreshAll()">🔄 Actualiser</button>
+                <button class="btn-refresh" id="btnToggleTooltip" onclick="toggleTooltip()" title="Activer/désactiver les infos au survol">💬 Tooltip ON</button>
             </div>
         </header>
 
@@ -368,6 +444,15 @@
 
             <div class="card">
                 <div class="card-header">
+                    <span class="card-title">Vent & DNI Solaire</span>
+                    <span class="card-icon">💨</span>
+                </div>
+                <div class="card-value" id="valWindSpeed">-- km/h</div>
+                <div class="card-subtext" id="subSolarDni">DNI Direct: -- W/m²</div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
                     <span class="card-title">Position Solaire</span>
                     <span class="card-icon">🧭</span>
                 </div>
@@ -385,10 +470,16 @@
             </div>
         </div>
 
-        <!-- Shutters Live State -->
-        <h3 style="margin-bottom: 1rem; font-weight: 600; font-size: 1.1rem; display: flex; align-items: center; gap: 0.5rem;">
-            <span>🪟</span> État Actuel des Volets
-        </h3>
+        <!-- Shutters Live State & Commands -->
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 1rem;">
+            <h3 style="font-weight: 600; font-size: 1.1rem; display: flex; align-items: center; gap: 0.5rem;">
+                <span>🪟</span> État & Commande des Volets
+            </h3>
+            <div class="global-actions">
+                <button class="btn-global" title="Ouvrir tous les volets" onclick="sendShutterCommand('all', 'OPEN', this)">🌅 Tout Ouvrir</button>
+                <button class="btn-global" title="Fermer tous les volets" onclick="sendShutterCommand('all', 'CLOSE', this)">🌇 Tout Fermer</button>
+            </div>
+        </div>
         <div class="shutters-grid" id="shuttersGrid">
             <!-- Injecté en JS -->
         </div>
@@ -405,11 +496,9 @@
                     </div>
                     <span style="font-size: 0.85rem; font-weight: 600; color: var(--accent-blue);" id="labelMasterChart">24 Heures</span>
                 </div>
-                <div class="chart-wrapper">
-                    <canvas id="masterChart"></canvas>
-                </div>
+                <div class="chart-wrapper" id="masterChart"></div>
                 <div class="chart-tip">
-                    💡 <em>Astuce : Cliquez sur les éléments de la légende en haut du graphique pour masquer/afficher une courbe.</em>
+                    💡 <em>Astuce : Utilisez la toolbar (🔍 zoom, ✋ pan, 🔄 reset) ou sélectionnez une zone pour zoomer. Cliquez sur la légende pour masquer/afficher une courbe.</em>
                 </div>
             </div>
 
@@ -419,18 +508,14 @@
                     <div class="chart-header">
                         <h3>🌡️ Températures & Nuages Détaillés</h3>
                     </div>
-                    <div class="secondary-chart-wrapper">
-                        <canvas id="tempChart"></canvas>
-                    </div>
+                    <div class="secondary-chart-wrapper" id="tempChart"></div>
                 </div>
 
                 <div class="chart-card">
                     <div class="chart-header">
                         <h3>🪟 Fermeture des Volets Détaillée</h3>
                     </div>
-                    <div class="secondary-chart-wrapper">
-                        <canvas id="shuttersChart"></canvas>
-                    </div>
+                    <div class="secondary-chart-wrapper" id="shuttersChart"></div>
                 </div>
             </div>
         </div>
@@ -486,7 +571,14 @@
                 if (live.cloud_cover !== undefined) {
                     document.getElementById('valCloudCover').innerText = `${live.cloud_cover} %`;
                     const radPct = Math.round((live.facteur_soleil || 0) * 100);
-                    document.getElementById('subSolarFactor').innerText = `Rayonnement: ${radPct}%`;
+                    document.getElementById('subSolarFactor').innerText = `Rayonnement effectif: ${radPct}%`;
+                }
+
+                if (live.wind_speed !== undefined || live.solar_dni !== undefined) {
+                    const wind = (live.wind_speed !== undefined && live.wind_speed !== null) ? `${live.wind_speed} km/h` : '-- km/h';
+                    const dni = (live.solar_dni !== undefined && live.solar_dni !== null) ? `${live.solar_dni} W/m²` : '-- W/m²';
+                    document.getElementById('valWindSpeed').innerText = wind;
+                    document.getElementById('subSolarDni').innerText = `DNI Direct: ${dni}`;
                 }
 
                 if (live.elev_soleil !== undefined && live.azim_soleil !== undefined) {
@@ -522,11 +614,18 @@
 
                         shuttersGrid.innerHTML += `
                             <div class="shutter-card">
-                                <div class="shutter-info">
-                                    <h4>${name}</h4>
-                                    <p>Dernier ordre: ${state}</p>
+                                <div class="shutter-header">
+                                    <div class="shutter-info">
+                                        <h4>${name}</h4>
+                                        <p>Ordre: ${state}</p>
+                                    </div>
+                                    <span class="badge ${badgeClass}">${state}</span>
                                 </div>
-                                <span class="badge ${badgeClass}">${state}</span>
+                                <div class="shutter-controls">
+                                    <button class="btn-shutter btn-shutter-open" title="Ouvrir le volet ${name}" onclick="sendShutterCommand('${name}', 'OPEN', this)">🔼 Ouvrir</button>
+                                    <button class="btn-shutter btn-shutter-stop" title="Stopper le volet ${name}" onclick="sendShutterCommand('${name}', 'STOP', this)">⏹️ Stop</button>
+                                    <button class="btn-shutter btn-shutter-close" title="Fermer le volet ${name}" onclick="sendShutterCommand('${name}', 'CLOSE', this)">🔽 Fermer</button>
+                                </div>
                             </div>
                         `;
                     }
@@ -571,8 +670,25 @@
 
                 const dataTExt = history.map(item => item.t_ext);
                 const dataTInt = history.map(item => item.t_int);
-                const dataClouds = history.map(item => item.cloud_cover);
+
+                // Helper: remplace les points à 0 isolés (entourés de valeurs non-nulles/non-zéro)
+                // par null afin que spanGaps les interpole et évite les chutes artificielles.
+                function filterIsolatedZeros(arr, minValidNeighbor = 1) {
+                    return arr.map((v, i) => {
+                        if (v !== 0 && v !== null && v !== undefined) return v;
+                        // Ne filtrer que si au moins un voisin valide existe
+                        const prev = arr[i - 1];
+                        const next = arr[i + 1];
+                        const prevOk = prev != null && prev > minValidNeighbor;
+                        const nextOk = next != null && next > minValidNeighbor;
+                        return (prevOk || nextOk) ? null : v;
+                    });
+                }
+
+                const dataClouds = filterIsolatedZeros(history.map(item => item.cloud_cover), 5);
                 const dataSolar = history.map(item => Math.round((item.facteur_soleil || 0) * 100));
+                const dataWind = filterIsolatedZeros(history.map(item => item.wind_speed ?? null), 0);
+                const dataDni = filterIsolatedZeros(history.map(item => item.solar_dni ?? null), 0);
 
                 // Extract unique shutter names
                 const shutterNames = Array.from(new Set(
@@ -587,182 +703,300 @@
                 };
                 const defaultColors = ['#22c55e', '#eab308', '#38bdf8', '#f43f5e'];
 
-                // ----------------------------------------------------
-                // 1. MASTER COMBINED CHART (Everything synchronized)
-                // ----------------------------------------------------
-                const masterDatasets = [
-                    {
-                        label: 'T° Extérieure (°C)',
-                        data: dataTExt,
-                        borderColor: '#f97316',
-                        backgroundColor: 'rgba(249, 115, 22, 0.05)',
-                        borderWidth: 2.5,
-                        tension: 0.3,
-                        fill: false,
-                        yAxisID: 'y'
+                // ===================================================
+                // Shared ApexCharts theme & toolbar options
+                // ===================================================
+                const apexTheme = {
+                    mode: 'dark',
+                    palette: 'palette1'
+                };
+                const apexToolbar = {
+                    show: true,
+                    tools: {
+                        download: true,
+                        selection: true,
+                        zoom: true,
+                        zoomin: true,
+                        zoomout: true,
+                        pan: true,
+                        reset: true
                     },
-                    {
-                        label: 'T° Intérieure (°C)',
-                        data: dataTInt,
-                        borderColor: '#38bdf8',
-                        borderDash: [5, 5],
-                        borderWidth: 2,
-                        tension: 0.3,
-                        fill: false,
-                        yAxisID: 'y'
-                    },
-                    {
-                        label: 'Nuages (%)',
-                        data: dataClouds,
-                        borderColor: 'rgba(148, 163, 184, 0.4)',
-                        backgroundColor: 'rgba(148, 163, 184, 0.12)',
-                        borderWidth: 1,
-                        tension: 0.2,
-                        fill: true,
-                        yAxisID: 'y1'
-                    },
-                    {
-                        label: 'Rayonnement Solaire (%)',
-                        data: dataSolar,
-                        borderColor: '#eab308',
-                        backgroundColor: 'rgba(234, 179, 8, 0.05)',
-                        borderWidth: 2,
-                        tension: 0.3,
-                        fill: false,
-                        yAxisID: 'y1'
-                    }
-                ];
+                    autoSelected: 'zoom'
+                };
+                const apexGrid = {
+                    borderColor: 'rgba(255,255,255,0.06)',
+                    strokeDashArray: 3
+                };
 
-                // Append shutter closures to master chart
+                // ===================================================
+                // 1. MASTER COMBINED CHART
+                // ===================================================
+                // Build shutter series for master chart
                 let colorIdx = 0;
-                shutterNames.forEach(name => {
-                    const closurePoints = history.map(h => {
+                const shutterSeriesMaster = shutterNames.map(name => {
+                    const pts = history.map(h => {
                         const val = h.shutters ? h.shutters[name] : null;
                         if (val === 'CLOSE') return 100;
                         if (val === 'OPEN') return 0;
-                        if (!isNaN(val)) return 100 - parseInt(val);
+                        if (val !== null && !isNaN(val)) return 100 - parseInt(val);
                         return null;
                     });
-                    const color = shutterColors[name.toLowerCase()] || defaultColors[colorIdx++ % defaultColors.length];
-                    masterDatasets.push({
-                        label: `Volet ${name.toUpperCase()} (% Fermé)`,
-                        data: closurePoints,
-                        borderColor: color,
-                        borderWidth: 2,
-                        stepped: true,
-                        fill: false,
-                        yAxisID: 'y1'
-                    });
-                });
-
-                if (masterChart) masterChart.destroy();
-                const ctxMaster = document.getElementById('masterChart').getContext('2d');
-                masterChart = new Chart(ctxMaster, {
-                    type: 'line',
-                    data: { labels: labels, datasets: masterDatasets },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        interaction: { mode: 'index', intersect: false },
-                        scales: {
-                            x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#94a3b8' } },
-                            y: {
-                                type: 'linear',
-                                display: true,
-                                position: 'left',
-                                title: { display: true, text: 'Température (°C)', color: '#f97316', font: { weight: 'bold' } },
-                                grid: { color: 'rgba(255,255,255,0.05)' },
-                                ticks: { color: '#f97316' }
-                            },
-                            y1: {
-                                type: 'linear',
-                                display: true,
-                                position: 'right',
-                                min: 0,
-                                max: 100,
-                                title: { display: true, text: 'Pourcentage (%) - Nuages, Soleil & Volets', color: '#38bdf8', font: { weight: 'bold' } },
-                                grid: { drawOnChartArea: false },
-                                ticks: { color: '#38bdf8' }
-                            }
-                        },
-                        plugins: {
-                            legend: {
-                                position: 'top',
-                                labels: { color: '#f8fafc', padding: 12, font: { size: 12 } }
-                            },
-                            tooltip: {
-                                padding: 10,
-                                cornerRadius: 8
-                            }
-                        }
-                    }
-                });
-
-                // ----------------------------------------------------
-                // 2. SECONDARY DETAILED CHARTS
-                // ----------------------------------------------------
-                // Temp Chart
-                if (tempChart) tempChart.destroy();
-                const ctx1 = document.getElementById('tempChart').getContext('2d');
-                tempChart = new Chart(ctx1, {
-                    type: 'line',
-                    data: {
-                        labels: labels,
-                        datasets: [
-                            { label: 'T° Ext (°C)', data: dataTExt, borderColor: '#f97316', backgroundColor: 'rgba(249, 115, 22, 0.1)', tension: 0.3, fill: true, yAxisID: 'y' },
-                            { label: 'T° Int (°C)', data: dataTInt, borderColor: '#38bdf8', borderDash: [4, 4], tension: 0.3, fill: false, yAxisID: 'y' },
-                            { label: 'Nuages (%)', data: dataClouds, borderColor: '#64748b', backgroundColor: 'rgba(100, 116, 139, 0.05)', tension: 0.2, fill: true, yAxisID: 'y1' }
-                        ]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        interaction: { mode: 'index', intersect: false },
-                        scales: {
-                            x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#94a3b8' } },
-                            y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#f97316' } },
-                            y1: { position: 'right', min: 0, max: 100, grid: { drawOnChartArea: false }, ticks: { color: '#64748b' } }
-                        },
-                        plugins: { legend: { labels: { color: '#f8fafc' } } }
-                    }
-                });
-
-                // Shutters Chart
-                colorIdx = 0;
-                const shutterDatasets = shutterNames.map(name => {
-                    const dataPoints = history.map(h => {
-                        const val = h.shutters ? h.shutters[name] : null;
-                        if (val === 'CLOSE') return 100;
-                        if (val === 'OPEN') return 0;
-                        if (!isNaN(val)) return 100 - parseInt(val);
-                        return null;
-                    });
-                    const color = shutterColors[name.toLowerCase()] || defaultColors[colorIdx++ % defaultColors.length];
                     return {
-                        label: `Fermeture ${name.toUpperCase()} (%)`,
-                        data: dataPoints,
-                        borderColor: color,
-                        stepped: true,
-                        tension: 0,
-                        fill: false
+                        name: `Volet ${name.toUpperCase()} (%)`,
+                        type: 'line',
+                        data: pts.map((v, i) => ({ x: labels[i], y: v })),
+                        color: shutterColors[name.toLowerCase()] || defaultColors[colorIdx++ % defaultColors.length]
                     };
                 });
 
-                if (shuttersChart) shuttersChart.destroy();
-                const ctx2 = document.getElementById('shuttersChart').getContext('2d');
-                shuttersChart = new Chart(ctx2, {
-                    type: 'line',
-                    data: { labels: labels, datasets: shutterDatasets },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        scales: {
-                            x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#94a3b8' } },
-                            y: { min: 0, max: 100, grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#94a3b8' } }
+                const masterSeries = [
+                    { name: 'T° Extérieure (°C)', type: 'line',
+                      data: dataTExt.map((v, i) => ({ x: labels[i], y: v })), color: '#f97316' },
+                    { name: 'T° Intérieure (°C)', type: 'line',
+                      data: dataTInt.map((v, i) => ({ x: labels[i], y: v })), color: '#38bdf8' },
+                    { name: 'Nuages (%)', type: 'area',
+                      data: dataClouds.map((v, i) => ({ x: labels[i], y: v })), color: '#94a3b8' },
+                    { name: 'DNI Solaire (W/m²)', type: 'line',
+                      data: dataDni.map((v, i) => ({ x: labels[i], y: v })), color: '#eab308' },
+                    { name: 'Vent (km/h)', type: 'line',
+                      data: dataWind.map((v, i) => ({ x: labels[i], y: v })), color: '#06b6d4' },
+                    ...shutterSeriesMaster
+                ];
+
+                // Axes assignment: series index -> yaxis index
+                // 0=T°Ext, 1=T°Int -> yaxis 0 (°C)
+                // 2=Nuages -> yaxis 1 (%)
+                // 3=DNI, 4=Vent -> yaxis 2 (W/m² & km/h)
+                // 5+ shutters -> yaxis 1 (%)
+                const masterSeriesYAxis = [
+                    0, 0, // T° Ext, T° Int
+                    1,    // Nuages
+                    2, 2, // DNI, Vent
+                    ...shutterNames.map(() => 1) // Volets -> % axis
+                ];
+
+                if (masterChart) { masterChart.destroy(); masterChart = null; }
+                masterChart = new ApexCharts(document.getElementById('masterChart'), {
+                    series: masterSeries,
+                    chart: {
+                        type: 'line',
+                        height: '100%',
+                        background: 'transparent',
+                        toolbar: apexToolbar,
+                        zoom: { enabled: true, type: 'x', autoScaleYaxis: true },
+                        animations: { enabled: false },
+                        defaultLocale: 'fr',
+                        locales: [{
+                            name: 'fr',
+                            options: {
+                                toolbar: {
+                                    download: 'Télécharger SVG',
+                                    selection: 'Sélection',
+                                    selectionZoom: 'Zoom par sélection',
+                                    zoomIn: 'Zoom +',
+                                    zoomOut: 'Zoom -',
+                                    pan: 'Déplacer',
+                                    reset: 'Réinitialiser'
+                                }
+                            }
+                        }]
+                    },
+                    theme: apexTheme,
+                    grid: apexGrid,
+                    stroke: {
+                        curve: masterSeries.map((s, i) =>
+                            i >= 5 ? 'stepline' : (i === 2 ? 'smooth' : 'smooth')
+                        ),
+                        width: masterSeries.map((s, i) => i === 2 ? 1 : 2),
+                        dashArray: masterSeries.map((s, i) => i === 1 ? 5 : 0)
+                    },
+                    fill: {
+                        type: masterSeries.map((s, i) => i === 2 ? 'gradient' : 'solid'),
+                        opacity: masterSeries.map((s, i) => i === 2 ? 0.15 : 1),
+                        gradient: { opacityFrom: 0.15, opacityTo: 0.01, shadeIntensity: 0 }
+                    },
+                    xaxis: {
+                        categories: labels,
+                        labels: { style: { colors: '#94a3b8' }, rotate: -30, hideOverlappingLabels: true },
+                        axisBorder: { color: 'rgba(255,255,255,0.08)' },
+                        axisTicks: { color: 'rgba(255,255,255,0.08)' }
+                    },
+                    yaxis: [
+                        {
+                            seriesName: 'T° Extérieure (°C)',
+                            title: { text: 'Température (°C)', style: { color: '#f97316', fontWeight: 600 } },
+                            labels: { style: { colors: '#f97316' }, formatter: v => v !== null ? v.toFixed(1) + '°' : '' },
+                            axisBorder: { show: true, color: '#f97316' }
                         },
-                        plugins: { legend: { labels: { color: '#f8fafc' } } }
-                    }
+                        {
+                            seriesName: 'T° Intérieure (°C)',
+                            show: false
+                        },
+                        {
+                            seriesName: 'Nuages (%)',
+                            opposite: true,
+                            min: 0, max: 100,
+                            title: { text: '% Nuages / Volets', style: { color: '#94a3b8', fontWeight: 600 } },
+                            labels: { style: { colors: '#94a3b8' }, formatter: v => v !== null ? v.toFixed(0) + '%' : '' },
+                            axisBorder: { show: true, color: '#94a3b8' }
+                        },
+                        {
+                            seriesName: 'DNI Solaire (W/m²)',
+                            opposite: true,
+                            title: { text: 'Vent (km/h) / DNI (W/m²)', style: { color: '#06b6d4', fontWeight: 600 } },
+                            labels: { style: { colors: '#06b6d4' }, formatter: v => v !== null ? v.toFixed(0) : '' },
+                            axisBorder: { show: true, color: '#06b6d4' }
+                        },
+                        { seriesName: 'Vent (km/h)', show: false },
+                        ...shutterNames.map(() => ({ seriesName: 'Nuages (%)', show: false }))
+                    ],
+                    tooltip: {
+                        shared: true,
+                        intersect: false,
+                        theme: 'dark',
+                        y: { formatter: (v, { seriesIndex }) => {
+                            if (v === null || v === undefined) return 'N/A';
+                            if (seriesIndex <= 1) return v.toFixed(1) + ' °C';
+                            if (seriesIndex === 2) return v.toFixed(0) + ' %';
+                            if (seriesIndex === 3) return v.toFixed(0) + ' W/m²';
+                            if (seriesIndex === 4) return v.toFixed(1) + ' km/h';
+                            return v.toFixed(0) + ' %';
+                        }}
+                    },
+                    legend: {
+                        position: 'top',
+                        labels: { colors: '#f8fafc' },
+                        itemMargin: { horizontal: 8 }
+                    },
+                    markers: { size: 0 }
                 });
+                masterChart.render();
+
+                // ===================================================
+                // 2. TEMPERATURES & MÉTÉO CHART
+                // ===================================================
+                if (tempChart) { tempChart.destroy(); tempChart = null; }
+                tempChart = new ApexCharts(document.getElementById('tempChart'), {
+                    series: [
+                        { name: 'T° Ext (°C)', type: 'area',
+                          data: dataTExt.map((v, i) => ({ x: labels[i], y: v })), color: '#f97316' },
+                        { name: 'T° Int (°C)', type: 'line',
+                          data: dataTInt.map((v, i) => ({ x: labels[i], y: v })), color: '#38bdf8' },
+                        { name: 'Nuages (%)', type: 'area',
+                          data: dataClouds.map((v, i) => ({ x: labels[i], y: v })), color: '#64748b' },
+                        { name: 'Vent (km/h)', type: 'line',
+                          data: dataWind.map((v, i) => ({ x: labels[i], y: v })), color: '#06b6d4' },
+                        { name: 'DNI (W/m²)', type: 'line',
+                          data: dataDni.map((v, i) => ({ x: labels[i], y: v })), color: '#eab308' }
+                    ],
+                    chart: {
+                        height: '100%',
+                        background: 'transparent',
+                        toolbar: apexToolbar,
+                        zoom: { enabled: true, type: 'x', autoScaleYaxis: true },
+                        animations: { enabled: false }
+                    },
+                    theme: apexTheme,
+                    grid: apexGrid,
+                    stroke: {
+                        curve: ['smooth', 'smooth', 'smooth', 'smooth', 'smooth'],
+                        width: [2, 2, 1, 2, 2],
+                        dashArray: [0, 5, 0, 0, 0]
+                    },
+                    fill: {
+                        type: ['gradient', 'solid', 'gradient', 'solid', 'solid'],
+                        opacity: [0.15, 1, 0.1, 1, 1],
+                        gradient: { opacityFrom: 0.2, opacityTo: 0.01, shadeIntensity: 0 }
+                    },
+                    xaxis: {
+                        categories: labels,
+                        labels: { style: { colors: '#94a3b8' }, rotate: -30, hideOverlappingLabels: true }
+                    },
+                    yaxis: [
+                        {
+                            title: { text: 'Température (°C)', style: { color: '#f97316' } },
+                            labels: { style: { colors: '#f97316' }, formatter: v => v !== null ? v.toFixed(1) + '°' : '' }
+                        },
+                        { show: false },
+                        {
+                            opposite: true, min: 0, max: 100,
+                            title: { text: 'Nuages (%)', style: { color: '#64748b' } },
+                            labels: { style: { colors: '#64748b' }, formatter: v => v !== null ? v.toFixed(0) + '%' : '' }
+                        },
+                        {
+                            opposite: true,
+                            title: { text: 'Vent & DNI', style: { color: '#06b6d4' } },
+                            labels: { style: { colors: '#06b6d4' }, formatter: v => v !== null ? v.toFixed(0) : '' }
+                        },
+                        { show: false }
+                    ],
+                    tooltip: {
+                        shared: true, intersect: false, theme: 'dark',
+                        y: { formatter: (v, { seriesIndex }) => {
+                            if (v === null || v === undefined) return 'N/A';
+                            if (seriesIndex <= 1) return v.toFixed(1) + ' °C';
+                            if (seriesIndex === 2) return v.toFixed(0) + ' %';
+                            if (seriesIndex === 3) return v.toFixed(1) + ' km/h';
+                            return v.toFixed(0) + ' W/m²';
+                        }}
+                    },
+                    legend: { position: 'top', labels: { colors: '#f8fafc' }, itemMargin: { horizontal: 8 } },
+                    markers: { size: 0 }
+                });
+                tempChart.render();
+
+                // ===================================================
+                // 3. SHUTTERS CHART
+                // ===================================================
+                colorIdx = 0;
+                const shutterSeries = shutterNames.map(name => {
+                    const pts = history.map(h => {
+                        const val = h.shutters ? h.shutters[name] : null;
+                        if (val === 'CLOSE') return 100;
+                        if (val === 'OPEN') return 0;
+                        if (val !== null && !isNaN(val)) return 100 - parseInt(val);
+                        return null;
+                    });
+                    return {
+                        name: `${name.charAt(0).toUpperCase() + name.slice(1)} (% fermé)`,
+                        data: pts.map((v, i) => ({ x: labels[i], y: v })),
+                        color: shutterColors[name.toLowerCase()] || defaultColors[colorIdx++ % defaultColors.length]
+                    };
+                });
+
+                if (shuttersChart) { shuttersChart.destroy(); shuttersChart = null; }
+                if (shutterSeries.length > 0) {
+                    shuttersChart = new ApexCharts(document.getElementById('shuttersChart'), {
+                        series: shutterSeries,
+                        chart: {
+                            type: 'line',
+                            height: '100%',
+                            background: 'transparent',
+                            toolbar: apexToolbar,
+                            zoom: { enabled: true, type: 'x' },
+                            animations: { enabled: false }
+                        },
+                        theme: apexTheme,
+                        grid: apexGrid,
+                        stroke: { curve: 'stepline', width: 2 },
+                        xaxis: {
+                            categories: labels,
+                            labels: { style: { colors: '#94a3b8' }, rotate: -30, hideOverlappingLabels: true }
+                        },
+                        yaxis: {
+                            min: 0, max: 100,
+                            title: { text: '% Fermé', style: { color: '#94a3b8' } },
+                            labels: { style: { colors: '#94a3b8' }, formatter: v => v + '%' }
+                        },
+                        tooltip: { shared: true, intersect: false, theme: 'dark' },
+                        legend: { position: 'top', labels: { colors: '#f8fafc' }, itemMargin: { horizontal: 8 } },
+                        markers: { size: 0 }
+                    });
+                    shuttersChart.render();
+                } else {
+                    document.getElementById('shuttersChart').innerHTML =
+                        '<p style="color:#64748b;padding:2rem;text-align:center;">Aucun historique de volets disponible.</p>';
+                }
 
             } catch (e) {
                 console.error("Erreur chargement historique:", e);
@@ -801,10 +1035,49 @@
             }
         }
 
+        async function sendShutterCommand(name, action, btnElem) {
+            if (btnElem) {
+                btnElem.disabled = true;
+                btnElem.style.opacity = '0.5';
+            }
+            try {
+                const res = await fetch('/api/shutter/command', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name: name, action: action })
+                });
+                const data = await res.json();
+                if (!data.success) {
+                    alert("Erreur lors de la commande : " + (data.error || "Échec"));
+                }
+            } catch (e) {
+                console.error("Erreur réseau commande volet:", e);
+                alert("Erreur réseau lors de l'envoi de la commande.");
+            } finally {
+                if (btnElem) {
+                    btnElem.disabled = false;
+                    btnElem.style.opacity = '1';
+                }
+                setTimeout(refreshAll, 500);
+            }
+        }
+
         function refreshAll() {
             fetchLive();
             loadHistoryData();
             loadActions();
+        }
+
+        let tooltipEnabled = true;
+        function toggleTooltip() {
+            tooltipEnabled = !tooltipEnabled;
+            const btn = document.getElementById('btnToggleTooltip');
+            btn.textContent = tooltipEnabled ? '💬 Tooltip ON' : '💬 Tooltip OFF';
+            btn.style.opacity = tooltipEnabled ? '1' : '0.5';
+            const opts = { tooltip: { enabled: tooltipEnabled } };
+            [masterChart, tempChart, shuttersChart].forEach(c => {
+                if (c) c.updateOptions(opts);
+            });
         }
 
         // Chargement initial

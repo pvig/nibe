@@ -49,7 +49,7 @@ class ShutterAutomationEngine:
         # 1. Lecture des températures, du statut de présence Nibe et de la météo
         t_ext, t_int = self.nibe.get_temperatures()
         est_absent, val_presence = self.nibe.get_presence_status()
-        facteur_soleil, description_ciel, cloud_cover = self.weather.get_solar_radiation_factor()
+        facteur_soleil, description_ciel, cloud_cover, wind_speed, solar_dni = self.weather.get_solar_radiation_factor()
 
         # 2. Calcul des heures de soleil (+5 min)
         heure_lever_5m, heure_coucher_5m = self.weather.get_sun_times()
@@ -93,7 +93,7 @@ class ShutterAutomationEngine:
 
             str_presence = f"🏠 Mode Présent (Reg 137 = {val_presence})" if not est_absent else f"✈️ Mode Absent / Vacances (Reg 137 = {val_presence})"
             print(f"🌡️  T° Ext instantanée (BT1) : {t_ext} °C | Intérieure (BT50) : {t_int} °C | {str_presence}")
-            print(f"🌤️  Nuages instantanés : {cloud_cover}% | Lissé sur 1h ({len(samples)} mesures) : {int(cloud_lisse)}% (Rayonnement lissé: {int(facteur_soleil_lisse * 100)}%)")
+            print(f"🌤️  Nuages : {cloud_cover}% | ☀️ DNI : {solar_dni} W/m² | 💨 Vent : {wind_speed} km/h | Lissé 1h : {int(cloud_lisse)}%")
 
             # Calcul de la position astronomique du soleil (Azimut & Élévation)
             elev_soleil, azim_soleil, facade_exposee = self.weather.get_solar_position()
@@ -196,9 +196,11 @@ class ShutterAutomationEngine:
             for nom, action_voulue in commandes_a_passer.items():
                 derniere_action = shutters_state.get(nom)
 
-                # Si c'est un événement solaire (Lever/Coucher), on force l'envoi physique même si l'état mémorisé était identique
-                if derniere_action == action_voulue and not is_sun_event:
-                    print(f"  ℹ️ Volet {nom.capitalize()} : Déjà commandé en '{action_voulue}' -> Aucun mouvement requis.")
+                # Ne jamais envoyer un ordre physique si le volet est déjà à la position voulue,
+                # même pour un événement lever/coucher du soleil (évite les clics relais inutiles).
+                if derniere_action == action_voulue:
+                    reason_str = " (événement solaire, position déjà atteinte)" if is_sun_event else ""
+                    print(f"  ℹ️ Volet {nom.capitalize()} : Déjà en '{action_voulue}'{reason_str} -> Aucun mouvement physique requis.")
                 else:
                     print(f"  ⚡ Volet {nom.capitalize()} : Nouvel ordre '{action_voulue}' (précédent: '{derniere_action}')")
                     if self.tydom.send_command(nom, action_voulue):
@@ -217,6 +219,11 @@ class ShutterAutomationEngine:
                 self.state_store.save(etat_memoire)
                 print("💾 Nouvel état et horodatage moteur enregistrés.")
             else:
+                # Remettre à jour le timer même sans commande physique : sans ça, la fenêtre
+                # de 30 min reste ouverte à chaque itération cron de 5 min et peut déclencher
+                # des ordres répétés si les conditions varient légèrement.
+                if allow_motor_execution:
+                    etat_memoire["last_motor_action_time"] = now_ts
                 self.state_store.save(etat_memoire)
                 print("✅ Échantillon enregistré. Aucun changement d'ordre nécessaire.")
 
@@ -228,6 +235,8 @@ class ShutterAutomationEngine:
             taux_f = taux_fermeture_final if 'taux_fermeture_final' in locals() else 0.0
             c_cover = cloud_cover if 'cloud_cover' in locals() else 0
             f_soleil = facteur_soleil if 'facteur_soleil' in locals() else 0.0
+            w_speed = wind_speed if 'wind_speed' in locals() else 0.0
+            s_dni = solar_dni if 'solar_dni' in locals() else 0.0
             is_canicule = (t_ext is not None) and (t_ext > 28.0)
             event_lbl = "SUNSET" if (is_sun_event and "CLOSE" in commandes_a_passer.values()) else ("SUNRISE" if is_sun_event else ("CANICULE" if is_canicule else "REGULAR"))
 
@@ -244,7 +253,9 @@ class ShutterAutomationEngine:
                 taux_fermeture=taux_f,
                 shutters=shutters_state,
                 event_type=event_lbl,
-                action_summary=f"Moteurs: {'Actifs' if modifications else 'Repos'}"
+                action_summary=f"Moteurs: {'Actifs' if modifications else 'Repos'}",
+                wind_speed=w_speed,
+                solar_dni=s_dni
             )
         except Exception as e:
             print(f"⚠️ Erreur lors de l'enregistrement de l'historique SQLite : {e}")

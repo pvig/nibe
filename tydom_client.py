@@ -5,7 +5,10 @@ Client MQTT Tydom pour la gestion des commandes de volets et de la découverte.
 
 import time
 import json
-import paho.mqtt.client as mqtt
+try:
+    import paho.mqtt.client as mqtt
+except ImportError:
+    mqtt = None
 from typing import Dict, Optional, List, Tuple
 
 class TydomMqttClient:
@@ -47,8 +50,16 @@ class TydomMqttClient:
             elif act_str.isdigit():
                 act_str = str(max(0, min(100, 100 - int(act_str))))
 
+        if mqtt is None:
+            print("⚠️ Module paho-mqtt non disponible.")
+            return False
+
         client = mqtt.Client()
-        client.connect(self.host, self.port, 60)
+        try:
+            client.connect(self.host, self.port, 60)
+        except Exception as e:
+            print(f"⚠️ Échec de connexion au broker MQTT {self.host}:{self.port} ({e})")
+            return False
 
         if act_str in ["CLOSE", "DOWN"]:
             topic_cmd = f"cover/tydom/{device_id}/set_positionCmd"
