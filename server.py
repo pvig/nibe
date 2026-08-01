@@ -18,7 +18,7 @@ from state_store import StateStore
 
 PORT = int(os.getenv("PORT", "8080"))
 BASE_DIR = os.path.dirname(os.path.realpath(__file__))
-WEB_DIR = os.path.join(BASE_DIR, "web")
+WEB_DIR = os.path.join(BASE_DIR, "web", "dist")
 
 
 class ThreadedHTTPServer(ThreadingMixIn, HTTPServer):
@@ -130,7 +130,7 @@ class RequestHandler(BaseHTTPRequestHandler):
         self.send_json_response(actions_data)
 
     def serve_static_file(self, path: str):
-        """Sert les fichiers statiques du dossier web/."""
+        """Sert les fichiers statiques du dossier web/dist/."""
         if path in ["/", "/index.html"]:
             file_path = os.path.join(WEB_DIR, "index.html")
             content_type = "text/html; charset=utf-8"
@@ -151,6 +151,8 @@ class RequestHandler(BaseHTTPRequestHandler):
                 content_type = "application/json"
             elif clean_path.endswith(".ico"):
                 content_type = "image/x-icon"
+            elif clean_path.endswith(".svg"):
+                content_type = "image/svg+xml"
             else:
                 content_type = "text/plain"
 

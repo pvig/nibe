@@ -51,6 +51,15 @@ class ShutterAutomationEngine:
         est_absent, val_presence = self.nibe.get_presence_status()
         facteur_soleil, description_ciel, cloud_cover, wind_speed, solar_dni = self.weather.get_solar_radiation_factor()
 
+        if cloud_cover is None or wind_speed is None or solar_dni is None:
+            last_state = self.db_logger.get_live_state()
+            if cloud_cover is None: cloud_cover = last_state.get("cloud_cover", 0) if last_state.get("cloud_cover") is not None else 0
+            if wind_speed is None: wind_speed = last_state.get("wind_speed", 0.0) if last_state.get("wind_speed") is not None else 0.0
+            if solar_dni is None: solar_dni = last_state.get("solar_dni", 0.0) if last_state.get("solar_dni") is not None else 0.0
+            
+            # Recalculate solar factor based on recovered cloud cover
+            facteur_soleil = max(0.0, min(1.0, (1.0 - (cloud_cover / 100.0)) ** 2))
+
         # 2. Calcul des heures de soleil (+5 min)
         heure_lever_5m, heure_coucher_5m = self.weather.get_sun_times()
         print(f"🌅 Lever du soleil (+5 min)  : {heure_lever_5m}")

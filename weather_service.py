@@ -147,7 +147,7 @@ class WeatherService:
             if self.last_valid_weather is not None:
                 f, desc, c, w, dni = self.last_valid_weather
                 return f, f"{desc} (Dernière valeur connue)", c, w, dni
-            return 1.0, "Indisponible (défaut 100%)", 0, 0.0, 0.0
+            return 1.0, "Indisponible (défaut 100%)", None, None, None
 
     def get_forecast_next_hours(self, hours: int = 3) -> Tuple[Optional[float], Optional[float], str]:
         """

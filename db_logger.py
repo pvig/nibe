@@ -102,7 +102,23 @@ class HistoryDatabase:
 
         try:
             with self._get_connection() as conn:
-                conn.cursor().execute(
+                cursor = conn.cursor()
+                
+                # Récupération de la dernière valeur valide si None (échec API)
+                if cloud_cover is None or wind_speed is None or solar_dni is None:
+                    cursor.execute("SELECT cloud_cover, wind_speed, solar_dni FROM history ORDER BY timestamp DESC LIMIT 1")
+                    last_row = cursor.fetchone()
+                    if last_row:
+                        if cloud_cover is None: cloud_cover = last_row["cloud_cover"]
+                        if wind_speed is None: wind_speed = last_row["wind_speed"]
+                        if solar_dni is None: solar_dni = last_row["solar_dni"]
+                
+                # Valeurs par défaut ultimes si la bdd était vide
+                if cloud_cover is None: cloud_cover = 0
+                if wind_speed is None: wind_speed = 0.0
+                if solar_dni is None: solar_dni = 0.0
+
+                cursor.execute(
                     """
                     INSERT INTO history (
                         timestamp, datetime_iso, t_ext, t_int, cloud_cover,
