@@ -36,5 +36,6 @@ SOLID principles and Clean Code are strong recommendations, not dogmatic require
 - **Clarity over cleverness**: Code must be immediately readable. If a "lazy" one-liner is cryptic (like a nested ternary), expand it. Simple, boring code is always preferred.
 - **Pragmatic Decoupling**: Separate concerns when it prevents bugs, simplifies testing, or allows obvious immediate reuse. Do NOT create preemptive interfaces, abstractions, or layers for "future-proofing".
 - **Maintainability**: Write code that is easy to read and easy to delete. Use descriptive naming. 
+- **CSS Hierarchy**: NO inline CSS (`style="..."`). Put reusable styles in shared `.css` files. Use scoped `<style>` blocks ONLY for strictly component-specific styles. (True laziness means avoiding future maintenance debt).
 
 The rule of thumb: If applying a SOLID principle makes the code harder to follow or adds more files without an immediate, tangible functional benefit, stick to the simpler approach.
