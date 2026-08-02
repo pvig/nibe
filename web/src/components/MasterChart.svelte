@@ -158,7 +158,13 @@
        return s;
     });
 
-    chart.updateSeries(newSeries, false);
+    // Si le nombre de séries a changé (ex: volets chargés après le 1er render),
+    // on rebuild aussi les options pour recréer les axes Y corrects.
+    if (newSeries.length !== currentSeries.length) {
+      chart.updateOptions(buildOptions(newSeries), false, false);
+    } else {
+      chart.updateSeries(newSeries, false);
+    }
   });
 
   $effect(() => {
@@ -169,11 +175,11 @@
 
 <div class="chart-card">
   <div class="chart-header master-header">
-    <div>
+    <div class="header-title-group">
       <h3>📊 Graphique Unifié (Températures, Ensoleillement, Météo &amp; Volets)</h3>
-      <p class="master-subtitle">
-        Superposition synchronisée de tous les facteurs de régulation thermique. <span class="highlight">({labelText})</span>
-      </p>
+      <span class="master-subtitle">
+        — Superposition synchronisée des facteurs de régulation. <span class="highlight">({labelText})</span>
+      </span>
     </div>
     
     <div class="header-actions master-actions">
@@ -201,7 +207,4 @@
     </div>
   </div>
   <div class="chart-wrapper" bind:this={el}></div>
-  <div class="chart-tip">
-    💡 <em>Astuce : Utilisez la toolbar (🔍 zoom, ✋ pan, 🔄 reset) ou sélectionnez une zone pour zoomer.</em>
-  </div>
 </div>

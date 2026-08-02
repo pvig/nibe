@@ -39,8 +39,8 @@
     </div>
     <div class="card-subtext lh-14">
       <span class="nowrap">{live ? `Élév: ${live.elev_soleil ?? '--'}°` : 'Élév: --°'}</span> / 
-      <span class="nowrap">{live ? `Azim: ${live.azim_soleil ?? '--'}°` : 'Azim: --°'}</span><br>
-      <span class="nowrap">{live?.facade_exposee ? '☀️ Façade Exposée' : '🌑 Façade à l\'Ombre'}</span>
+      <span class="nowrap">{live ? `Azim: ${live.azim_soleil ?? '--'}°` : 'Azim: --°'}</span> • 
+      <span class="nowrap">{live?.facade_exposee ? '☀️ Exposée' : '🌑 À l\'Ombre'}</span>
     </div>
   </div>
 
