@@ -3,8 +3,8 @@
 export const fetchLive = () =>
   fetch('/api/live').then(r => r.json());
 
-export const fetchHistory = (hours) =>
-  fetch(`/api/history?hours=${hours}`).then(r => r.json());
+export const fetchHistory = (hours, maxPoints = 250) =>
+  fetch(`/api/history?hours=${hours}&max_points=${maxPoints}`).then(r => r.json());
 
 export const fetchActions = (limit = 50) =>
   fetch(`/api/actions?limit=${limit}`).then(r => r.json());

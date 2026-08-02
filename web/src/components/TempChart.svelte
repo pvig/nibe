@@ -29,6 +29,19 @@
     ];
   }
 
+  function getTempMin() {
+    const exts = history.map(h => h.t_ext).filter(x => x != null);
+    const ints = history.map(h => h.t_int).filter(x => x != null);
+    const m = Math.min(...exts, ...ints);
+    return m === Infinity ? 0 : Math.floor(m - 1);
+  }
+  function getTempMax() {
+    const exts = history.map(h => h.t_ext).filter(x => x != null);
+    const ints = history.map(h => h.t_int).filter(x => x != null);
+    const m = Math.max(...exts, ...ints);
+    return m === -Infinity ? 30 : Math.ceil(m + 1);
+  }
+
   onMount(() => {
     if (!el) return;
     chart = new ApexCharts(el, {
@@ -54,12 +67,12 @@
         }
       },
       theme: apexTheme, grid: apexGrid,
-      stroke: { curve: ['smooth','smooth','smooth','smooth','smooth'], width: [2,2,1,2,2], dashArray: [0,5,0,0,0] },
+      stroke: { curve: ['smooth','smooth','smooth','smooth','smooth'], width: [2,2,1,2,2], dashArray: [5,5,0,0,0] },
       fill: { type: ['gradient','solid','gradient','solid','solid'], opacity: [0.15,1,0.1,1,1], gradient: { opacityFrom: 0.2, opacityTo: 0.01, shadeIntensity: 0 } },
       xaxis: { categories: labels, labels: { style: { colors: '#94a3b8' }, rotate: -30, hideOverlappingLabels: true } },
       yaxis: [
-        { title: { text: 'Température (°C)', style: { color: '#f97316' } }, labels: { style: { colors: '#f97316' }, formatter: v => v != null ? v.toFixed(1)+'°' : '' } },
-        { show: false },
+        { min: getTempMin, max: getTempMax, seriesName: 'T° Ext (°C)', title: { text: 'Température (°C)', style: { color: '#f97316' } }, labels: { style: { colors: '#f97316' }, formatter: v => v != null ? v.toFixed(1)+'°' : '' } },
+        { min: getTempMin, max: getTempMax, seriesName: 'T° Ext (°C)', show: false },
         { opposite: true, min: 0, max: 100, title: { text: 'Nuages (%)', style: { color: '#64748b' } }, labels: { style: { colors: '#64748b' }, formatter: v => v != null ? v.toFixed(0)+'%' : '' } },
         { opposite: true, title: { text: 'Vent & DNI', style: { color: '#06b6d4' } }, labels: { style: { colors: '#06b6d4' }, formatter: v => v != null ? v.toFixed(0) : '' } },
         { show: false }

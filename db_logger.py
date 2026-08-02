@@ -194,33 +194,39 @@ class HistoryDatabase:
             print(f"⚠️ Erreur de lecture du statut live SQLite : {e}")
             return {}
 
-    def get_history(self, hours: int = 24) -> List[Dict[str, Any]]:
+    def get_history(self, hours: int = 24, max_points: int = 250) -> List[Dict[str, Any]]:
         """
         Retourne l'historique des points de mesure des N dernières heures.
         Si hours <= 0, retourne tout l'historique disponible.
-        Effectue un sous-échantillonnage fluide si le nombre de points est élevé (> 500 points).
+        Effectue un sous-échantillonnage fluide en SQL pour alléger la RAM.
         """
         try:
             with self._get_connection() as conn:
                 cursor = conn.cursor()
+                limit_timestamp = 0
                 if hours > 0:
                     limit_timestamp = int(time.time()) - (hours * 3600)
+                
+                cursor.execute("SELECT COUNT(*) as count FROM history WHERE timestamp >= ?", (limit_timestamp,))
+                total_rows = cursor.fetchone()["count"]
+                
+                step = max(1, total_rows // max_points)
+                
+                if step > 1:
+                    cursor.execute(
+                        "SELECT * FROM history WHERE timestamp >= ? AND (id % ?) = 0 ORDER BY timestamp ASC",
+                        (limit_timestamp, step)
+                    )
+                else:
                     cursor.execute(
                         "SELECT * FROM history WHERE timestamp >= ? ORDER BY timestamp ASC",
                         (limit_timestamp,)
                     )
-                else:
-                    cursor.execute("SELECT * FROM history ORDER BY timestamp ASC")
                 
                 rows = cursor.fetchall()
-                total_rows = len(rows)
-
-                # Sous-échantillonnage intelligent pour garder au maximum ~500 points
-                step = max(1, total_rows // 500)
-                selected_rows = rows[::step] if step > 1 else rows
-
+                
                 result = []
-                for r in selected_rows:
+                for r in rows:
                     item = dict(r)
                     item["shutters"] = json.loads(item.get("shutters_json") or "{}")
                     result.append(item)

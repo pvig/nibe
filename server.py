@@ -41,7 +41,8 @@ class RequestHandler(BaseHTTPRequestHandler):
             self.handle_api_live()
         elif path == "/api/history":
             hours = int(query.get("hours", ["24"])[0])
-            self.handle_api_history(hours)
+            max_points = int(query.get("max_points", ["250"])[0])
+            self.handle_api_history(hours, max_points)
         elif path == "/api/actions":
             limit = int(query.get("limit", ["50"])[0])
             self.handle_api_actions(limit)
@@ -119,9 +120,9 @@ class RequestHandler(BaseHTTPRequestHandler):
         }
         self.send_json_response(response)
 
-    def handle_api_history(self, hours: int):
+    def handle_api_history(self, hours: int, max_points: int = 250):
         """Retourne les points de mesure des N dernières heures."""
-        history_data = self.db_logger.get_history(hours=hours)
+        history_data = self.db_logger.get_history(hours=hours, max_points=max_points)
         self.send_json_response(history_data)
 
     def handle_api_actions(self, limit: int):
