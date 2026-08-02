@@ -44,6 +44,11 @@ SEUIL_TEMP_EXT_BASSE = 21.0
 # Délai minimum entre deux mouvements moteurs (en minutes)
 DELAI_MINIMUM_MOTEUR_MINUTES = int(os.getenv("DELAI_MINIMUM_MOTEUR_MINUTES", "30"))
 
+# Régulation par cible DNI (W/m²) — transmittance proportionnelle
+DNI_CIBLE            = float(os.getenv("DNI_CIBLE",            "550.0"))  # W/m² transmis maximum
+DNI_HYST             = float(os.getenv("DNI_HYST",             "50.0"))   # marge d'hystérésis
+DNI_TEMP_INT_SEUIL   = float(os.getenv("DNI_TEMP_INT_SEUIL",   "22.0"))   # T° int d'activation DNI (°C)
+
 def main():
     nibe = NibeClient(ip=NIBE_IP, port=NIBE_PORT)
     weather = WeatherService(latitude=LATITUDE, longitude=LONGITUDE)
@@ -60,7 +65,10 @@ def main():
         temp_ext_low=SEUIL_TEMP_EXT_BASSE,
         heat_protection_shutters=VOLETS_PROTECTION_CHALEUR,
         canicule_protection_shutters=VOLETS_PROTECTION_CANICULE,
-        min_motor_interval_minutes=DELAI_MINIMUM_MOTEUR_MINUTES
+        min_motor_interval_minutes=DELAI_MINIMUM_MOTEUR_MINUTES,
+        dni_seuil=DNI_CIBLE,
+        dni_hyst=DNI_HYST,
+        dni_temp_int_seuil=DNI_TEMP_INT_SEUIL,
     )
 
     engine.run()

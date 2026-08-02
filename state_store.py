@@ -23,6 +23,7 @@ class StateStore:
                     data.setdefault("last_sunset_trigger_date", "")
                     data.setdefault("last_sunrise_trigger_date", "")
                     data.setdefault("last_motor_action_time", 0)
+                    data.setdefault("last_taux_dni", 0.0)
                     data.setdefault("samples", [])
                     return data
             except Exception as e:
@@ -32,6 +33,7 @@ class StateStore:
             "last_sunset_trigger_date": "",
             "last_sunrise_trigger_date": "",
             "last_motor_action_time": 0,
+            "last_taux_dni": 0.0,
             "samples": []
         }
 

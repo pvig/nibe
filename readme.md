@@ -137,3 +137,62 @@ Le tableau de bord interactif vous permet de :
 * **Broker Mosquitto** : Pensez à autoriser les connexions du réseau Docker en créant `/etc/mosquitto/conf.d/local.conf` avec `listener 1883` et `allow_anonymous true`.
 
 Bonne automatisation ! 🌿
+
+
+---
+
+## 🧠 Logique de Régulation Thermique
+
+Le moteur (`engine.py`) applique **trois couches de régulation** lors de chaque cycle cron, dont le résultat final est le `max()` de chaque taux de fermeture calculé.
+
+### Couche 1 — Protection Solaire (T° extérieure)
+
+Fermeture progressive des volets exposés (`VOLETS_PROTECTION_CHALEUR`) basée sur la progression de la température extérieure entre `SEUIL_TEMP_EXT_BASSE` et `SEUIL_TEMP_EXT_HAUTE`. L'ensoleillement est lissé sur 1 heure.
+
+| Variable | Défaut | Description |
+|---|---|---|
+| `SEUIL_TEMP_EXT_BASSE` | `21.0 °C` | Seuil bas : volets ouverts |
+| `SEUIL_TEMP_EXT_HAUTE` | `25.0 °C` | Seuil haut : fermeture maximale |
+
+### Couche 2 — Protection Canicule (T° ext > 28°C)
+
+Au-dessus de 28°C, fermeture progressive des volets canicule (`VOLETS_PROTECTION_CANICULE`) même à l'ombre, pour limiter la conduction thermique.
+
+### Couche 3 — Régulation par Cible DNI (Transmittance Proportionnelle)
+
+Pilotage des volets exposés pour maintenir une irradiance transmise inférieure à une cible, limitant le gain thermique solaire direct sans couper la lumière inutilement.
+
+**Formule :**
+```
+fermeture_DNI = 1 - (DNI_CIBLE / DNI_mesuré)
+```
+
+Par exemple, avec `DNI = 700 W/m²` et `DNI_CIBLE = 550 W/m²` → fermeture de **21%**.
+
+**Conditions d'activation :** les trois doivent être vraies simultanément :
+1. La façade est exposée au soleil direct (azimut et élévation dans la fenêtre)
+2. La température intérieure `t_int > DNI_TEMP_INT_SEUIL` (22.0°C par défaut) — activation préventive avant que la chaleur ne soit trop ressentie
+3. `solar_dni > DNI_CIBLE + DNI_HYST` (600 W/m² par défaut)
+
+**Hystérésis :** si le DNI est entre `DNI_CIBLE` et `DNI_CIBLE + DNI_HYST`, le taux précédent est maintenu pour éviter les oscillations toutes les 5 minutes.
+
+| Variable d'environnement | Défaut | Description |
+|---|---|---|
+| `DNI_CIBLE` | `550.0` W/m² | Irradiance transmise maximale souhaitée |
+| `DNI_HYST` | `50.0` W/m² | Marge d'hystérésis (activation à cible+hyst, désactivation à cible) |
+| `DNI_TEMP_INT_SEUIL` | `22.0` °C | Température intérieure minimale pour activer la régulation DNI |
+
+> **Note :** `DNI_TEMP_INT_SEUIL` (22°C) est intentionnellement plus bas que `SEUIL_TEMP_INT_HAUTE` (23.5°C) pour déclencher une protection préventive avant que la chaleur ne devienne inconfortable.
+
+Ces deux valeurs peuvent également être modifiées directement dans `nibe_shutter_control.py`.
+
+> **Référence :** cette approche est analogue à l'objet `WindowProperty:ShadingControl` mode `OnIfHighSolarOnWindow` d'EnergyPlus, et correspond au niveau de régulation A de la norme EN 15232 (EPBD).
+
+### Auto-vérification de la logique DNI
+
+```bash
+python3 test_dni.py
+```
+
+Ce script vérifie les 5 cas limites (fermeture nominale, t_int trop basse, DNI sous cible, hystérésis, façade non exposée) sans aucune dépendance externe.
+

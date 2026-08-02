@@ -24,7 +24,10 @@ class ShutterAutomationEngine:
         temp_ext_low: float = 21.0,
         heat_protection_shutters: Optional[List[str]] = None,
         canicule_protection_shutters: Optional[List[str]] = None,
-        min_motor_interval_minutes: int = 30
+        min_motor_interval_minutes: int = 30,
+        dni_seuil: float = 400.0,
+        dni_hyst: float = 50.0,
+        dni_temp_int_seuil: float = 22.0
     ):
         self.nibe = nibe_client or NibeClient()
         self.weather = weather_service or WeatherService()
@@ -38,6 +41,9 @@ class ShutterAutomationEngine:
         self.heat_protection_shutters = heat_protection_shutters or ["salon", "bureau"]
         self.canicule_protection_shutters = canicule_protection_shutters or ["salon", "bureau", "chambre"]
         self.min_motor_interval_seconds = min_motor_interval_minutes * 60
+        self.dni_seuil = dni_seuil
+        self.dni_hyst = dni_hyst
+        self.dni_temp_int_seuil = dni_temp_int_seuil
 
     def run(self) -> None:
         """Exécute une itération de régulation."""
@@ -138,7 +144,22 @@ class ShutterAutomationEngine:
                 taux_canicule = 0.0
 
             # Taux de fermeture final pour les volets de protection (max entre solaire et canicule)
-            taux_fermeture_final = max(taux_fermeture_solaire, taux_canicule)
+            taux_fermeture_solaire_canicule = max(taux_fermeture_solaire, taux_canicule)
+
+            # 3b. Régulation par cible DNI (Transmittance Proportionnelle)
+            #     Active si : façade exposée + t_int dépasse le seuil + DNI dépasse la cible+hystérésis
+            if facade_exposee and t_int > self.dni_temp_int_seuil and solar_dni > (self.dni_seuil + self.dni_hyst):
+                taux_dni = max(0.0, 1.0 - self.dni_seuil / solar_dni)
+                print(f"☀️ Régulation DNI : {solar_dni} W/m² > seuil {self.dni_seuil + self.dni_hyst} W/m², T° int {t_int}°C > {self.dni_temp_int_seuil}°C → fermeture DNI : {int(taux_dni * 100)}%")
+            elif facade_exposee and solar_dni > self.dni_seuil:
+                # Zone d'hystérésis : maintien du taux précédent pour éviter les oscillations
+                taux_dni = etat_memoire.get("last_taux_dni", 0.0)
+                print(f"☀️ Régulation DNI : dans la bande d'hystérésis ({solar_dni} W/m²), maintien à {int(taux_dni * 100)}%")
+            else:
+                taux_dni = 0.0
+            etat_memoire["last_taux_dni"] = taux_dni
+
+            taux_fermeture_final = max(taux_fermeture_solaire_canicule, taux_dni)
             ratio_pct = int(taux_fermeture_final * 100)
 
             # Position d'ouverture cible pour les volets ciblés (pas de 5%)
