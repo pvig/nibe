@@ -168,17 +168,17 @@
 </script>
 
 <div class="chart-card">
-  <div class="chart-header" style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:1rem;">
+  <div class="chart-header master-header">
     <div>
       <h3>📊 Graphique Unifié (Températures, Ensoleillement, Météo &amp; Volets)</h3>
-      <p style="font-size:0.8rem;color:var(--text-secondary);margin-top:0.2rem">
-        Superposition synchronisée de tous les facteurs de régulation thermique. <span style="font-weight:600;color:var(--accent-blue)">({labelText})</span>
+      <p class="master-subtitle">
+        Superposition synchronisée de tous les facteurs de régulation thermique. <span class="highlight">({labelText})</span>
       </p>
     </div>
     
-    <div class="header-actions" style="display:flex; gap:0.5rem; flex-wrap:wrap; align-items:center;">
+    <div class="header-actions master-actions">
       <div class="range-selector">
-        <select id="timeRangeSelect" bind:value={timeRange} style="padding:0.4rem; border-radius:4px; border:1px solid rgba(255,255,255,0.1);">
+        <select id="timeRangeSelect" bind:value={timeRange} class="control-select">
           <option value="12">Dernières 12h</option>
           <option value="24">Dernières 24h</option>
           <option value="48">Dernières 48h</option>
@@ -188,13 +188,12 @@
           <option value="0">Tout l'historique</option>
         </select>
       </div>
-      <button class="btn-refresh" onclick={onRefresh} style="padding:0.4rem 0.8rem; border-radius:4px; background:var(--bg-secondary); color:var(--text-primary); border:1px solid rgba(255,255,255,0.1); cursor:pointer;">🔄 Actualiser</button>
+      <button class="btn-refresh control-btn" onclick={onRefresh}>🔄 Actualiser</button>
       <button
-        class="btn-refresh"
+        class="btn-refresh control-btn"
         id="btnToggleTooltip"
         onclick={toggle}
         title="Activer/désactiver les infos au survol"
-        style="padding:0.4rem 0.8rem; border-radius:4px; background:var(--bg-secondary); color:var(--text-primary); border:1px solid rgba(255,255,255,0.1); cursor:pointer;"
         style:opacity={tooltipEnabled ? '1' : '0.5'}
       >
         💬 Tooltip {tooltipEnabled ? 'ON' : 'OFF'}

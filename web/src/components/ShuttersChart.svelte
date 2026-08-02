@@ -38,7 +38,7 @@
     if (!el) return;
     const series = buildSeries();
     if (series.length === 0) {
-      el.innerHTML = '<p style="color:#64748b;padding:2rem;text-align:center;">Aucun historique de volets disponible.</p>';
+      el.innerHTML = '<p class="empty-message">Aucun historique de volets disponible.</p>';
       return;
     }
     chart = new ApexCharts(el, {
@@ -100,3 +100,7 @@
   <div class="chart-header"><h3>🪟 Fermeture des Volets Détaillée</h3></div>
   <div class="secondary-chart-wrapper" bind:this={el}></div>
 </div>
+
+<style>
+  .empty-message { color: #64748b; padding: 2rem; text-align: center; }
+</style>

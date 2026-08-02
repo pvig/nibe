@@ -95,17 +95,24 @@
     onCommandSent={() => setTimeout(refreshAll, 600)}
   />
 
-  <details style="margin-bottom: 2rem; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 1rem;">
-    <summary style="cursor: pointer; color: var(--text-secondary); font-size: 0.95rem; font-weight: 500; outline: none;">
+  <details class="actions-details">
+    <summary class="actions-summary">
       ⏱️ Afficher l'historique des ordres moteurs envoyés
     </summary>
-    <div style="margin-top: 1rem;">
+    <div class="actions-content">
       <ActionsTable {actions} />
     </div>
   </details>
 
   <div class="footer">
     Dominibe Automation System &bull; Nibe S735 Modbus &amp; Delta Dore Tydom MQTT
-    {#if loading}<span style="margin-left:0.5rem;opacity:0.5">↻</span>{/if}
+    {#if loading}<span class="loading-spinner">↻</span>{/if}
   </div>
 </div>
+
+<style>
+  .actions-details { margin-bottom: 2rem; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 1rem; }
+  .actions-summary { cursor: pointer; color: var(--text-secondary); font-size: 0.95rem; font-weight: 500; outline: none; }
+  .actions-content { margin-top: 1rem; }
+  .loading-spinner { margin-left: 0.5rem; opacity: 0.5; }
+</style>

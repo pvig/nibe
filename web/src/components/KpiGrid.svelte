@@ -11,8 +11,8 @@
       <span class="card-icon">🌡️</span>
     </div>
     <div class="card-value">
-      <span style="white-space:nowrap;color:var(--accent-orange)">{live ? fmt(live.t_ext, '°C') : '-- °C'}</span>
-      <span style="white-space:nowrap;color:var(--accent-blue)">{live ? fmt(live.t_int, '°C') : '-- °C'}</span>
+      <span class="val-ext">{live ? fmt(live.t_ext, '°C') : '-- °C'}</span>
+      <span class="val-int">{live ? fmt(live.t_int, '°C') : '-- °C'}</span>
     </div>
     <div class="card-subtext">BT1 (PAC) / BT50 (Ambiance)</div>
   </div>
@@ -23,8 +23,8 @@
       <span class="card-icon">🌤️</span>
     </div>
     <div class="card-value">
-      <span style="white-space:nowrap;color:var(--text-primary)">{live ? fmt(live.cloud_cover, '%') : '-- %'} <span style="font-size:1.2rem">☁️</span></span>
-      <span style="white-space:nowrap;color:var(--accent-cyan)">{live ? fmt(live.wind_speed, 'km/h') : '-- km/h'} <span style="font-size:1.2rem">💨</span></span>
+      <span class="val-cloud">{live ? fmt(live.cloud_cover, '%') : '-- %'} <span class="emoji-large">☁️</span></span>
+      <span class="val-wind">{live ? fmt(live.wind_speed, 'km/h') : '-- km/h'} <span class="emoji-large">💨</span></span>
     </div>
     <div class="card-subtext">DNI Direct: {live ? (live.solar_dni || 0) + ' W/m²' : '-- W/m²'}</div>
   </div>
@@ -34,13 +34,13 @@
       <span class="card-title">Soleil &amp; Façade</span>
       <span class="card-icon">🧭</span>
     </div>
-    <div class="card-value" style="font-size:1.4rem">
-      <span style="white-space:nowrap">{sun ? `${sun.sunrise} → ${sun.sunset}` : '-- → --'}</span>
+    <div class="card-value text-medium">
+      <span class="nowrap">{sun ? `${sun.sunrise} → ${sun.sunset}` : '-- → --'}</span>
     </div>
-    <div class="card-subtext" style="line-height:1.4">
-      <span style="white-space:nowrap">{live ? `Élév: ${live.elev_soleil ?? '--'}°` : 'Élév: --°'}</span> / 
-      <span style="white-space:nowrap">{live ? `Azim: ${live.azim_soleil ?? '--'}°` : 'Azim: --°'}</span><br>
-      <span style="white-space:nowrap">{live?.facade_exposee ? '☀️ Façade Exposée' : '🌑 Façade à l\'Ombre'}</span>
+    <div class="card-subtext lh-14">
+      <span class="nowrap">{live ? `Élév: ${live.elev_soleil ?? '--'}°` : 'Élév: --°'}</span> / 
+      <span class="nowrap">{live ? `Azim: ${live.azim_soleil ?? '--'}°` : 'Azim: --°'}</span><br>
+      <span class="nowrap">{live?.facade_exposee ? '☀️ Façade Exposée' : '🌑 Façade à l\'Ombre'}</span>
     </div>
   </div>
 
@@ -68,3 +68,14 @@
     <div class="card-subtext">Reg 137 Nibe</div>
   </div>
 </div>
+
+<style>
+  .nowrap { white-space: nowrap; }
+  .val-ext { white-space: nowrap; color: var(--accent-orange); }
+  .val-int { white-space: nowrap; color: var(--accent-blue); }
+  .val-cloud { white-space: nowrap; color: var(--text-primary); }
+  .val-wind { white-space: nowrap; color: var(--accent-cyan); }
+  .emoji-large { font-size: 1.2rem; }
+  .text-medium { font-size: 1.4rem; }
+  .lh-14 { line-height: 1.4; }
+</style>
