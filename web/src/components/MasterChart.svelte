@@ -39,17 +39,17 @@
         name: sName,
         type: 'line',
         hidden: hasPrefs ? prefs.includes(sName) : true,
-        data: pts.map((v, i) => ({ x: labels[i], y: v })),
+        data: pts,
         color: SHUTTER_COLORS[name.toLowerCase()] || DEFAULT_COLORS[colorIdx++ % DEFAULT_COLORS.length]
       };
     });
 
     return [
-      { name: 'T° Extérieure (°C)', type: 'line', hidden: hasPrefs ? prefs.includes('T° Extérieure (°C)') : false, data: dataTExt.map((v,i) => ({x:labels[i],y:v})), color: '#f97316' },
-      { name: 'T° Intérieure (°C)', type: 'line', hidden: hasPrefs ? prefs.includes('T° Intérieure (°C)') : false, data: dataTInt.map((v,i) => ({x:labels[i],y:v})), color: '#38bdf8' },
-      { name: 'Nuages (%)', type: 'area', hidden: hasPrefs ? prefs.includes('Nuages (%)') : false, data: dataClouds.map((v,i) => ({x:labels[i],y:v})), color: '#94a3b8' },
-      { name: 'DNI Solaire (W/m²)', type: 'line', hidden: hasPrefs ? prefs.includes('DNI Solaire (W/m²)') : false, data: dataDni.map((v,i) => ({x:labels[i],y:v})), color: '#eab308' },
-      { name: 'Vent (km/h)', type: 'line', hidden: hasPrefs ? prefs.includes('Vent (km/h)') : false, data: dataWind.map((v,i) => ({x:labels[i],y:v})), color: '#06b6d4' },
+      { name: 'T° Extérieure (°C)', type: 'area', hidden: hasPrefs ? prefs.includes('T° Extérieure (°C)') : false, data: dataTExt, color: '#f97316' },
+      { name: 'T° Intérieure (°C)', type: 'area', hidden: hasPrefs ? prefs.includes('T° Intérieure (°C)') : false, data: dataTInt, color: '#38bdf8' },
+      { name: 'Nuages (%)', type: 'area', hidden: hasPrefs ? prefs.includes('Nuages (%)') : false, data: dataClouds, color: '#94a3b8' },
+      { name: 'DNI Solaire (W/m²)', type: 'area', hidden: hasPrefs ? prefs.includes('DNI Solaire (W/m²)') : false, data: dataDni, color: '#eab308' },
+      { name: 'Vent (km/h)', type: 'line', hidden: hasPrefs ? prefs.includes('Vent (km/h)') : false, data: dataWind, color: '#06b6d4' },
       ...shutterSeries
     ];
   }
@@ -76,16 +76,15 @@
         zoom: { enabled: true, type: 'x', autoScaleYaxis: true },
         animations: { enabled: false },
         events: {
-          updated: function(chartContext) {
-            const hiddenIndices = chartContext.w.globals.collapsedSeriesIndices || [];
-            const currentSeries = chartContext.w.config.series || [];
-            if (!currentSeries.length) return;
-            const currentlyHidden = hiddenIndices.map(i => currentSeries[i]?.name).filter(Boolean);
-            const currentNames = currentSeries.map(s => s.name);
-            let saved = [];
-            try { saved = JSON.parse(localStorage.getItem('nibe_hidden_master')) || []; } catch(e){}
-            const nextSaved = saved.filter(n => !currentNames.includes(n)).concat(currentlyHidden);
-            localStorage.setItem('nibe_hidden_master', JSON.stringify(nextSaved));
+          legendClick: function(chartContext, seriesIndex) {
+            // Fired only on user click — safe to persist state.
+            // Delay to let ApexCharts toggle collapsedSeriesIndices first.
+            setTimeout(() => {
+              const collapsed = chartContext.w.globals.collapsedSeriesIndices || [];
+              const s = chartContext.w.config.series || [];
+              const hiddenNames = collapsed.map(i => s[i]?.name).filter(Boolean);
+              localStorage.setItem('nibe_hidden_master', JSON.stringify(hiddenNames));
+            }, 50);
           }
         },
         ...makeLocale()
@@ -93,14 +92,14 @@
       theme: apexTheme,
       grid: apexGrid,
       stroke: {
-        curve: series.map((s,i) => i >= 5 ? 'stepline' : 'smooth'),
+        curve: series.map((s,i) => 'straight'),
         width: series.map((s,i) => i === 2 ? 1 : 2),
         dashArray: series.map((s,i) => i === 0 || i === 1 ? 5 : 0)
       },
       fill: {
-        type: series.map((s,i) => i === 2 ? 'gradient' : 'solid'),
-        opacity: series.map((s,i) => i === 2 ? 0.15 : 1),
-        gradient: { opacityFrom: 0.15, opacityTo: 0.01, shadeIntensity: 0 }
+        type: series.map(s => s.type === 'area' ? 'gradient' : 'solid'),
+        opacity: series.map(s => s.type === 'area' ? 0.25 : 1),
+        gradient: { opacityFrom: 0.2, opacityTo: 0.25, shadeIntensity: 0.5 }
       },
       xaxis: {
         categories: labels,
@@ -146,25 +145,21 @@
   // Mise à jour réactive quand les données ou le tooltip changent
   $effect(() => {
     if (!chart || !chart.w || !chart.w.globals) return;
-    const hiddenIndices = chart.w.globals.collapsedSeriesIndices || [];
-    const currentSeries = chart.w.config.series || [];
-    const hiddenNames = hiddenIndices.map(i => currentSeries[i]?.name).filter(Boolean);
-    
-    const newSeries = buildSeries().map(s => {
-       const isCurrentlyHidden = hiddenNames.includes(s.name);
-       const isCurrentlyVisible = currentSeries.some(cs => cs.name === s.name) && !isCurrentlyHidden;
-       if (isCurrentlyHidden) return { ...s, hidden: true };
-       if (isCurrentlyVisible) return { ...s, hidden: false };
-       return s;
-    });
+    let saved = [];
+    try { 
+      saved = JSON.parse(localStorage.getItem('nibe_hidden_master')) || []; 
+      // Auto-recovery from previous bug: if T° Ext is hidden along with others, it's likely corrupted.
+      if (saved.includes('T° Extérieure (°C)') && saved.includes('Nuages (%)')) {
+        saved = [];
+        localStorage.removeItem('nibe_hidden_master');
+      }
+    } catch(e){}
 
-    // Si le nombre de séries a changé (ex: volets chargés après le 1er render),
-    // on rebuild aussi les options pour recréer les axes Y corrects.
-    if (newSeries.length !== currentSeries.length) {
-      chart.updateOptions(buildOptions(newSeries), false, false);
-    } else {
-      chart.updateSeries(newSeries, false);
-    }
+    const newSeries = buildSeries().map(s => ({ ...s, hidden: saved.includes(s.name) }));
+
+    // IMPORTANT: Pour les graphiques mixtes (line/area), updateSeries a un bug dans ApexCharts 
+    // qui fait disparaitre les courbes "smooth". Il faut TOUJOURS utiliser updateOptions.
+    chart.updateOptions(buildOptions(newSeries), false, false);
   });
 
   $effect(() => {
