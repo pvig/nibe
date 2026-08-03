@@ -73,6 +73,9 @@ class ShutterAutomationEngine:
 
         etat_memoire = self.state_store.load()
         shutters_state = etat_memoire.get("shutters", {})
+        config = etat_memoire.get("config", {})
+        solar_response_factor = config.get("solar_response_factor", 0.0)
+        amplification_solaire = 1.0 + solar_response_factor
         commandes_a_passer = {}
         is_sun_event = False
 
@@ -133,6 +136,8 @@ class ShutterAutomationEngine:
 
             # 3. Taux de fermeture solaire effectif
             taux_fermeture_solaire = besoin_thermique * facteur_soleil_decision
+            if amplification_solaire > 1.0 and taux_fermeture_solaire > 0:
+                taux_fermeture_solaire = min(1.0, taux_fermeture_solaire * amplification_solaire)
 
             # 4. Protection conductive canicule (T° ext > 28°C)
             # Au-dessus de 28°C, la conduction de l'air chaud impose une fermeture progressive même à l'ombre
@@ -150,6 +155,8 @@ class ShutterAutomationEngine:
             #     Active si : façade exposée + t_int dépasse le seuil + DNI dépasse la cible+hystérésis
             if facade_exposee and t_int > self.dni_temp_int_seuil and solar_dni > (self.dni_seuil + self.dni_hyst):
                 taux_dni = max(0.0, 1.0 - self.dni_seuil / solar_dni)
+                if amplification_solaire > 1.0 and taux_dni > 0:
+                    taux_dni = min(1.0, taux_dni * amplification_solaire)
                 print(f"☀️ Régulation DNI : {solar_dni} W/m² > seuil {self.dni_seuil + self.dni_hyst} W/m², T° int {t_int}°C > {self.dni_temp_int_seuil}°C → fermeture DNI : {int(taux_dni * 100)}%")
             elif facade_exposee and solar_dni > self.dni_seuil:
                 # Zone d'hystérésis : maintien du taux précédent pour éviter les oscillations
@@ -192,7 +199,8 @@ class ShutterAutomationEngine:
                         else:
                             commandes_a_passer[nom] = pos_canicule_str
                 elif t_decision > self.temp_ext_low:
-                    print(f"☀️ Protection Solaire Lissée ({ratio_pct}% fermé, ouverture cible: {pos_target_str}) pour les volets ciblés ({', '.join(self.heat_protection_shutters)}).")
+                    amp_str = f" (Amplifié x{amplification_solaire:.1f})" if amplification_solaire > 1.0 else ""
+                    print(f"☀️ Protection Solaire Lissée{amp_str} ({ratio_pct}% fermé, ouverture cible: {pos_target_str}) pour les volets ciblés ({', '.join(self.heat_protection_shutters)}).")
                     for nom in self.heat_protection_shutters:
                         commandes_a_passer[nom] = pos_target_str
                 else:

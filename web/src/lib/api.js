@@ -9,6 +9,16 @@ export const fetchHistory = (hours, maxPoints = 250) =>
 export const fetchActions = (limit = 50) =>
   fetch(`/api/actions?limit=${limit}`).then(r => r.json());
 
+export const fetchConfig = () =>
+  fetch('/api/config').then(r => r.json());
+
+export const updateConfig = (configObj) =>
+  fetch('/api/config', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(configObj)
+  }).then(r => r.json());
+
 export const sendShutterCommand = (name, action) =>
   fetch('/api/shutter/command', {
     method: 'POST',

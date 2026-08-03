@@ -1,7 +1,21 @@
 <script>
-  let { live = null, sun = null } = $props();
+  import { updateConfig } from '../lib/api.js';
+  let { live = null, sun = null, config = {} } = $props();
 
   const fmt = (v, unit) => v != null ? `${v} ${unit}` : `-- ${unit}`;
+
+  let sensitivity = $state(0);
+  $effect(() => {
+    if (config && config.solar_response_factor !== undefined) {
+      sensitivity = config.solar_response_factor;
+    }
+  });
+
+  async function onSensitivityChange(e) {
+    const val = parseFloat(e.target.value);
+    sensitivity = val;
+    await updateConfig({ solar_response_factor: val });
+  }
 </script>
 
 <div class="grid-kpi">
@@ -67,6 +81,18 @@
     </div>
     <div class="card-subtext">Reg 137 Nibe</div>
   </div>
+
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">Sensibilité Solaire</span>
+      <span class="card-icon">🎚️</span>
+    </div>
+    <div class="card-value slider-container">
+      <input type="range" min="0" max="1" step="0.1" value={sensitivity} onchange={onSensitivityChange} />
+      <span class="slider-val">{(sensitivity * 100).toFixed(0)}%</span>
+    </div>
+    <div class="card-subtext">0 = Modéré, 1 = Accentué</div>
+  </div>
 </div>
 
 <style>
@@ -78,4 +104,8 @@
   .emoji-large { font-size: 1.2rem; }
   .text-medium { font-size: 1.4rem; }
   .lh-14 { line-height: 1.4; }
+  
+  .slider-container { display: flex; align-items: center; gap: 0.5rem; }
+  .slider-container input[type="range"] { flex: 1; accent-color: var(--accent-orange); cursor: pointer; }
+  .slider-val { font-size: 1rem; color: var(--accent-orange); font-weight: 600; min-width: 2.5rem; text-align: right; }
 </style>

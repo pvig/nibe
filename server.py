@@ -46,6 +46,8 @@ class RequestHandler(BaseHTTPRequestHandler):
         elif path == "/api/actions":
             limit = int(query.get("limit", ["50"])[0])
             self.handle_api_actions(limit)
+        elif path == "/api/config":
+            self.handle_api_config_get()
         else:
             self.serve_static_file(path)
 
@@ -55,6 +57,8 @@ class RequestHandler(BaseHTTPRequestHandler):
 
         if path == "/api/shutter/command":
             self.handle_api_shutter_command()
+        elif path == "/api/config":
+            self.handle_api_config_post()
         else:
             self.send_error(404, "Endpoint non trouvé")
 
@@ -105,6 +109,27 @@ class RequestHandler(BaseHTTPRequestHandler):
         except Exception as e:
             print(f"⚠️ Erreur commande volet Web : {e}")
             self.send_json_response({"success": False, "error": str(e)}, status=500)
+
+    def handle_api_config_get(self):
+        """Retourne la configuration actuelle."""
+        state = self.state_store.load()
+        config = state.get("config", {})
+        self.send_json_response(config)
+
+    def handle_api_config_post(self):
+        """Met à jour un ou plusieurs paramètres de configuration."""
+        try:
+            content_length = int(self.headers.get('Content-Length', 0))
+            body = self.rfile.read(content_length).decode('utf-8')
+            data = json.loads(body) if body else {}
+
+            for key, value in data.items():
+                self.state_store.update_config(key, value)
+            
+            self.send_json_response({"success": True, "message": "Configuration mise à jour"})
+        except Exception as e:
+            print(f"⚠️ Erreur mise à jour configuration : {e}")
+            self.send_json_response({"success": False, "error": str(e)}, status=400)
 
     def handle_api_live(self):
         """Retourne la dernière mesure enregistrée + prédictions solaires."""

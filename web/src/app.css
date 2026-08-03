@@ -55,10 +55,23 @@ body {
 .card:hover { border-color: rgba(255, 255, 255, 0.2); }
 
 .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.2rem; }
-.card-title { font-size: 0.75rem; font-weight: 500; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em; }
+.card-title {
+    font-size: 0.7rem;
+    font-weight: 500;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
 .card-icon { font-size: 1rem; }
-.card-value { font-size: 1.3rem; font-weight: 700; margin-bottom: 0.1rem; }
-.card-subtext { font-size: 0.72rem; color: var(--text-secondary); }
+.card-value {
+    font-size: 1.1rem;
+    font-weight: 700;
+    margin-bottom: 0.1rem;
+}
+.card-subtext {
+    font-size: 0.65rem;
+    color: var(--text-secondary);
+}
 
 /* --- Badges --- */
 .badge { display: inline-block; padding: 0.15rem 0.5rem; border-radius: 9999px; font-size: 0.7rem; font-weight: 600; }
@@ -132,7 +145,7 @@ body {
 /* --- Grid layouts --- */
 .grid-kpi {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    grid-template-columns: repeat(6, 1fr);
     gap: 0.6rem;
     margin-bottom: 0.75rem;
 }

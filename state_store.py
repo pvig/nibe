@@ -20,6 +20,7 @@ class StateStore:
                 with open(self.filepath, "r") as f:
                     data = json.load(f)
                     data.setdefault("shutters", {})
+                    data.setdefault("config", {"solar_response_factor": 0.0})
                     data.setdefault("last_sunset_trigger_date", "")
                     data.setdefault("last_sunrise_trigger_date", "")
                     data.setdefault("last_motor_action_time", 0)
@@ -29,6 +30,7 @@ class StateStore:
             except Exception as e:
                 print(f"⚠️ Erreur de lecture du fichier d'état ({self.filepath}) : {e}")
         return {
+            "config": {"solar_response_factor": 0.0},
             "shutters": {},
             "last_sunset_trigger_date": "",
             "last_sunrise_trigger_date": "",
@@ -36,6 +38,15 @@ class StateStore:
             "last_taux_dni": 0.0,
             "samples": []
         }
+
+    def update_config(self, key: str, value: Any) -> Dict[str, Any]:
+        """Met à jour une valeur de configuration et sauvegarde l'état."""
+        state = self.load()
+        if "config" not in state:
+            state["config"] = {}
+        state["config"][key] = value
+        self.save(state)
+        return state
 
     def save(self, state: Dict[str, Any]) -> None:
         """Sauvegarde l'état actuel dans le fichier JSON."""

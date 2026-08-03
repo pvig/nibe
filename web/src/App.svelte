@@ -5,11 +5,12 @@
   import ShuttersSection from './components/ShuttersSection.svelte';
   import MasterChart from './components/MasterChart.svelte';
   import ActionsTable from './components/ActionsTable.svelte';
-  import { fetchLive, fetchHistory, fetchActions, formatLabels } from './lib/api.js';
+  import { fetchLive, fetchHistory, fetchActions, fetchConfig, formatLabels } from './lib/api.js';
 
   // ── État réactif centralisé ──────────────────────────────────────────
   let live        = $state(null);
   let sun         = $state(null);
+  let config      = $state({});
   let shutters    = $state({});
   let history     = $state([]);
   let actions     = $state([]);
@@ -50,6 +51,14 @@
     }
   }
 
+  async function loadConfig() {
+    try {
+      config = await fetchConfig();
+    } catch (e) {
+      console.error('Erreur config:', e);
+    }
+  }
+
   async function loadHistory() {
     try {
       history = await fetchHistory(timeRange);
@@ -68,7 +77,7 @@
 
   async function refreshAll() {
     loading = true;
-    await Promise.all([loadLive(), loadHistory(), loadActions()]);
+    await Promise.all([loadLive(), loadHistory(), loadActions(), loadConfig()]);
     loading = false;
   }
 
@@ -83,7 +92,7 @@
 <div class="container">
   <Header />
 
-  <KpiGrid {live} {sun} />
+  <KpiGrid {live} {sun} {config} />
 
   <!-- Charts container -->
   <div class="charts-container">
