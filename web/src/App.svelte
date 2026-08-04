@@ -106,7 +106,7 @@
 
   <details class="actions-details">
     <summary class="actions-summary">
-      ⏱️ Afficher l'historique des ordres moteurs envoyés
+      ⏱️ Afficher le Journal des Ordres Émis
     </summary>
     <div class="actions-content">
       <ActionsTable {actions} />

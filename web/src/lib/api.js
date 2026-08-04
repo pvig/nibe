@@ -26,6 +26,13 @@ export const sendShutterCommand = (name, action) =>
     body: JSON.stringify({ name, action })
   }).then(r => r.json());
 
+export const sendVmcCommand = (mode) =>
+  fetch('/api/vmc/command', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ mode })
+  }).then(r => r.json());
+
 // Filtre les points à 0 isolés et interpole les valeurs nulles pour éviter les trous dans les graphiques
 export function filterIsolatedZeros(arr, minValidNeighbor = 1) {
   // 1. Remplacer uniquement les undefined par null (les vrais zéros sont maintenant légitimes)

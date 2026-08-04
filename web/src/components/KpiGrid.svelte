@@ -1,13 +1,18 @@
 <script>
-  import { updateConfig } from '../lib/api.js';
+  import { updateConfig, sendVmcCommand } from '../lib/api.js';
   let { live = null, sun = null, config = {} } = $props();
 
   const fmt = (v, unit) => v != null ? `${v} ${unit}` : `-- ${unit}`;
 
   let sensitivity = $state(0);
+  let vmcMode = $state('AUTO');
+  
   $effect(() => {
     if (config && config.solar_response_factor !== undefined) {
       sensitivity = config.solar_response_factor;
+    }
+    if (config && config.vmc_mode !== undefined) {
+      vmcMode = config.vmc_mode;
     }
   });
 
@@ -15,6 +20,12 @@
     const val = parseFloat(e.target.value);
     sensitivity = val;
     await updateConfig({ solar_response_factor: val });
+  }
+
+  async function onVmcModeChange(e) {
+    const val = e.target.value;
+    vmcMode = val;
+    await sendVmcCommand(val);
   }
 </script>
 
@@ -91,7 +102,14 @@
       <input type="range" min="0" max="1" step="0.1" value={sensitivity} onchange={onSensitivityChange} />
       <span class="slider-val">{(sensitivity * 100).toFixed(0)}%</span>
     </div>
-    <div class="card-subtext">0 = Modéré, 1 = Accentué</div>
+    <div class="card-subtext vmc-container">
+      VMC : 
+      <select bind:value={vmcMode} onchange={onVmcModeChange} class="vmc-select">
+        <option value="AUTO">Auto (Free Cooling)</option>
+        <option value="0">Normale (OFF)</option>
+        <option value="2">Intensive (Vitesse 2)</option>
+      </select>
+    </div>
   </div>
 </div>
 
@@ -105,7 +123,11 @@
   .text-medium { font-size: 1.4rem; }
   .lh-14 { line-height: 1.4; }
   
-  .slider-container { display: flex; align-items: center; gap: 0.5rem; }
+  .slider-container { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem; }
   .slider-container input[type="range"] { flex: 1; accent-color: var(--accent-orange); cursor: pointer; }
   .slider-val { font-size: 1rem; color: var(--accent-orange); font-weight: 600; min-width: 2.5rem; text-align: right; }
+  
+  .vmc-container { display: flex; align-items: center; justify-content: space-between; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 0.5rem; margin-top: 0.5rem; }
+  .vmc-select { background: var(--bg-card); color: var(--text-primary); border: 1px solid rgba(255,255,255,0.2); border-radius: 4px; padding: 2px 5px; font-size: 0.85rem; outline: none; cursor: pointer; flex: 1; margin-left: 0.5rem; }
+  .vmc-select:focus { border-color: var(--accent-blue); }
 </style>

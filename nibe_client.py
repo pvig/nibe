@@ -13,6 +13,7 @@ class NibeClient:
         self.reg_temp_ext = 1   # Sonde extérieure BT1
         self.reg_temp_int = 116 # Sonde d'ambiance intérieure BT50
         self.reg_presence = 137 # Statut de présence / vacances Nibe
+        self.reg_vmc_mode = 104 # Mode Ventilation (0=Normale, 1-4=Vitesses)
 
     def get_temperatures(self) -> Tuple[Optional[float], Optional[float]]:
         """
@@ -58,3 +59,25 @@ class NibeClient:
             client.close()
 
         return False, 0
+
+    def set_vmc_mode(self, mode: int) -> bool:
+        """
+        Définit le mode de ventilation (0=Normale, 1=Vitesse 1, 2=Vitesse 2, 3=Vitesse 3, 4=Vitesse 4).
+        """
+        client = ModbusTcpClient(self.ip, port=self.port)
+        if not client.connect():
+            print("❌ Impossible de se connecter à la pompe à chaleur Nibe (VMC).")
+            return False
+            
+        try:
+            # Mode Ventilation = Holding Register 104
+            res = client.write_register(self.reg_vmc_mode, mode)
+            if res.isError():
+                print(f"⚠️ Erreur Modbus écriture VMC mode {mode}.")
+                return False
+            return True
+        except Exception as e:
+            print(f"⚠️ Exception écriture VMC Nibe: {e}")
+            return False
+        finally:
+            client.close()

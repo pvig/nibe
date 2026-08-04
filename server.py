@@ -57,6 +57,8 @@ class RequestHandler(BaseHTTPRequestHandler):
 
         if path == "/api/shutter/command":
             self.handle_api_shutter_command()
+        elif path == "/api/vmc/command":
+            self.handle_api_vmc_command()
         elif path == "/api/config":
             self.handle_api_config_post()
         else:
@@ -108,6 +110,43 @@ class RequestHandler(BaseHTTPRequestHandler):
                 self.send_json_response({"success": True, "message": f"Ordre '{action}' envoyé au volet {name}"})
         except Exception as e:
             print(f"⚠️ Erreur commande volet Web : {e}")
+            self.send_json_response({"success": False, "error": str(e)}, status=500)
+
+    def handle_api_vmc_command(self):
+        """Définit manuellement la vitesse de la VMC via Modbus et met à jour la configuration."""
+        try:
+            content_length = int(self.headers.get('Content-Length', 0))
+            body = self.rfile.read(content_length).decode('utf-8')
+            data = json.loads(body) if body else {}
+
+            mode_str = str(data.get("mode", "AUTO")).upper()
+            self.state_store.update_config("vmc_mode", mode_str)
+
+            if mode_str != "AUTO":
+                try:
+                    mode_int = int(mode_str)
+                    from nibe_client import NibeClient
+                    client = NibeClient()
+                    if client.set_vmc_mode(mode_int):
+                        etat_memoire = self.state_store.load()
+                        prev_mode = etat_memoire.get("last_vmc_mode", 0)
+                        etat_memoire["last_vmc_mode"] = mode_int
+                        self.state_store.save(etat_memoire)
+                        self.db_logger.log_action(
+                            shutter_name="VMC",
+                            action=str(mode_int),
+                            previous_state=str(prev_mode),
+                            reason="Commande Manuelle Web"
+                        )
+                        self.send_json_response({"success": True, "message": f"VMC configurée en vitesse {mode_int} (Manuelle)"})
+                    else:
+                        self.send_json_response({"success": False, "error": "Erreur de communication Modbus avec la Nibe"}, status=500)
+                except ValueError:
+                    self.send_json_response({"success": False, "error": "Mode invalide"}, status=400)
+            else:
+                self.send_json_response({"success": True, "message": "VMC repassée en mode Automatique"})
+        except Exception as e:
+            print(f"⚠️ Erreur commande VMC Web : {e}")
             self.send_json_response({"success": False, "error": str(e)}, status=500)
 
     def handle_api_config_get(self):

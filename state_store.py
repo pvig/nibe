@@ -20,7 +20,7 @@ class StateStore:
                 with open(self.filepath, "r") as f:
                     data = json.load(f)
                     data.setdefault("shutters", {})
-                    data.setdefault("config", {"solar_response_factor": 0.0})
+                    data.setdefault("config", {"solar_response_factor": 0.0, "vmc_mode": "AUTO"})
                     data.setdefault("last_sunset_trigger_date", "")
                     data.setdefault("last_sunrise_trigger_date", "")
                     data.setdefault("last_motor_action_time", 0)
@@ -30,7 +30,7 @@ class StateStore:
             except Exception as e:
                 print(f"⚠️ Erreur de lecture du fichier d'état ({self.filepath}) : {e}")
         return {
-            "config": {"solar_response_factor": 0.0},
+            "config": {"solar_response_factor": 0.0, "vmc_mode": "AUTO"},
             "shutters": {},
             "last_sunset_trigger_date": "",
             "last_sunrise_trigger_date": "",

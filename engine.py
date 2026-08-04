@@ -94,7 +94,15 @@ class ShutterAutomationEngine:
         elif heure_actuelle >= heure_lever_5m and heure_actuelle < heure_coucher_5m and etat_memoire.get("last_sunrise_trigger_date") != date_actuelle:
             print(f"🌅 Lever du soleil (+5 min: {heure_lever_5m}) : Ouverture automatique de tous les volets.")
             for nom in self.tydom.devices.keys():
+                # On réinitialise l'état interne pour forcer l'envoi de la commande radio (au cas où il y aurait eu une manipulation manuelle)
+                shutters_state[nom] = "UNKNOWN"
                 commandes_a_passer[nom] = "OPEN"
+
+            if config.get("vmc_mode") != "AUTO":
+                print("🔄 Réinitialisation de la VMC au mode AUTO suite au lever du soleil.")
+                config["vmc_mode"] = "AUTO"
+                etat_memoire["config"] = config
+                
             etat_memoire["last_sunrise_trigger_date"] = date_actuelle
             is_sun_event = True
 
@@ -171,7 +179,7 @@ class ShutterAutomationEngine:
 
             # Position d'ouverture cible pour les volets ciblés (pas de 5%)
             pos_ouvert = round((1.0 - taux_fermeture_final) * 100 / 5.0) * 5
-            if pos_ouvert >= 95:
+            if pos_ouvert >= 80:
                 pos_target_str = "OPEN"
             elif pos_ouvert <= 5:
                 pos_target_str = "CLOSE"
@@ -180,7 +188,7 @@ class ShutterAutomationEngine:
 
             # Position d'ouverture canicule pour les autres volets
             pos_canicule_ouvert = round((1.0 - taux_canicule) * 100 / 5.0) * 5
-            if pos_canicule_ouvert >= 95:
+            if pos_canicule_ouvert >= 80:
                 pos_canicule_str = "OPEN"
             elif pos_canicule_ouvert <= 5:
                 pos_canicule_str = "CLOSE"
@@ -215,6 +223,37 @@ class ShutterAutomationEngine:
             print("⚠️ Données Nibe indisponibles pour la régulation thermique.")
             elev_soleil, azim_soleil, facade_exposee = self.weather.get_solar_position()
             taux_fermeture_final = 0.0
+
+        # 5b. Gestion de la VMC (Free Cooling nocturne)
+        config_vmc = str(config.get("vmc_mode", "AUTO")).upper()
+        last_vmc_mode = etat_memoire.get("last_vmc_mode", 0)
+        desired_vmc_mode = last_vmc_mode
+
+        if config_vmc == "AUTO":
+            if t_ext is not None and t_int is not None:
+                if t_int > 24.0 and t_ext < (t_int - 2.0):
+                    # Conditions idéales pour Free Cooling (Surventilation nocturne)
+                    desired_vmc_mode = 2
+                elif t_ext >= (t_int - 0.5) or t_int < 23.5:
+                    # Plus intéressant ou on a trop refroidi
+                    desired_vmc_mode = 0
+        else:
+            try:
+                desired_vmc_mode = int(config_vmc)
+            except ValueError:
+                desired_vmc_mode = 0
+                
+        if desired_vmc_mode != last_vmc_mode:
+            print(f"💨 Bascule de la VMC Nibe vers le mode {desired_vmc_mode} (Ancien mode: {last_vmc_mode}, Config: {config_vmc})")
+            if self.nibe.set_vmc_mode(desired_vmc_mode):
+                etat_memoire["last_vmc_mode"] = desired_vmc_mode
+                self.state_store.save(etat_memoire)
+                self.db_logger.log_action(
+                    shutter_name="VMC",
+                    action=str(desired_vmc_mode),
+                    previous_state=str(last_vmc_mode),
+                    reason="Régulation Free Cooling" if config_vmc == "AUTO" else "Commande Manuelle Forcée"
+                )
 
         # 6. Filtrage d'activation temporisée des moteurs (Préservation des moteurs)
         import time

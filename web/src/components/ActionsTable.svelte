@@ -4,7 +4,7 @@
 
 <div class="actions-section">
   <h3 class="actions-title">
-    <span>⚡</span> Journal des Ordres Moteurs Émis
+    <span>⚡</span> Journal des Ordres Émis
   </h3>
   <div class="table-responsive">
     <table>
