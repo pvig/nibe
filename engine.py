@@ -55,13 +55,14 @@ class ShutterAutomationEngine:
         # 1. Lecture des températures, du statut de présence Nibe et de la météo
         t_ext, t_int = self.nibe.get_temperatures()
         est_absent, val_presence = self.nibe.get_presence_status()
-        facteur_soleil, description_ciel, cloud_cover, wind_speed, solar_dni = self.weather.get_solar_radiation_factor()
+        facteur_soleil, description_ciel, cloud_cover, wind_speed, solar_dni, max_temp_today = self.weather.get_solar_radiation_factor()
 
         if cloud_cover is None or wind_speed is None or solar_dni is None:
             last_state = self.db_logger.get_live_state()
             if cloud_cover is None: cloud_cover = last_state.get("cloud_cover", 0) if last_state.get("cloud_cover") is not None else 0
             if wind_speed is None: wind_speed = last_state.get("wind_speed", 0.0) if last_state.get("wind_speed") is not None else 0.0
             if solar_dni is None: solar_dni = last_state.get("solar_dni", 0.0) if last_state.get("solar_dni") is not None else 0.0
+            if max_temp_today is None: max_temp_today = last_state.get("max_temp_today", None)
             
             # Recalculate solar factor based on recovered cloud cover
             facteur_soleil = max(0.0, min(1.0, (1.0 - (cloud_cover / 100.0)) ** 2))
@@ -78,6 +79,20 @@ class ShutterAutomationEngine:
         amplification_solaire = 1.0 + solar_response_factor
         commandes_a_passer = {}
         is_sun_event = False
+
+        # 2b. Mode Anticipation Canicule (9h-17h si T° max prévue >= 28°C)
+        anticipation_mode = False
+        if max_temp_today is not None and max_temp_today >= 28.0:
+            if 9 <= maintenant.hour < 17:
+                anticipation_mode = True
+                print(f"🔥 Mode Anticipation Actif (T° max prévue : {max_temp_today}°C). Abaissement des seuils de déclenchement.")
+                self.temp_ext_low -= 2.0
+                self.temp_ext_high -= 2.0
+                self.dni_temp_int_seuil -= 2.0
+        
+        etat_memoire["anticipation_mode"] = anticipation_mode
+        if max_temp_today is not None:
+            etat_memoire["max_temp_today"] = max_temp_today
 
         # 3. Règle du Coucher du Soleil (+5 min) -> Fermeture uniquement si Mode Absent Nibe (Reg 137 > 0)
         if heure_actuelle >= heure_coucher_5m and etat_memoire.get("last_sunset_trigger_date") != date_actuelle:
@@ -215,6 +230,10 @@ class ShutterAutomationEngine:
                     print("🍃 Mode Rafraîchissement diurne actif (T° ext <= 21°C).")
                     for nom in self.tydom.devices.keys():
                         commandes_a_passer[nom] = "OPEN"
+                
+                if anticipation_mode:
+                    print("⚠️ Anticipation Canicule : Fermeture préventive complète du volet de la chambre (Nord).")
+                    commandes_a_passer["chambre"] = "CLOSE"
             else:
                 print("🌙 Période nocturne (Régulation thermique diurne au repos).")
                 elev_soleil, azim_soleil, facade_exposee = self.weather.get_solar_position()

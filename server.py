@@ -174,12 +174,17 @@ class RequestHandler(BaseHTTPRequestHandler):
         """Retourne la dernière mesure enregistrée + prédictions solaires."""
         live_data = self.db_logger.get_live_state()
         sunrise, sunset = self.weather.get_sun_times()
+        state = self.state_store.load()
         
         response = {
             "live": live_data,
             "sun": {
                 "sunrise": sunrise,
                 "sunset": sunset
+            },
+            "anticipation": {
+                "active": state.get("anticipation_mode", False),
+                "max_temp": state.get("max_temp_today", None)
             }
         }
         self.send_json_response(response)

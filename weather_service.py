@@ -110,21 +110,25 @@ class WeatherService:
 
         return round(elevation, 1), round(azimuth, 1), is_exposed
 
-    def get_solar_radiation_factor(self) -> Tuple[float, str, int, float, float]:
+    def get_solar_radiation_factor(self) -> Tuple[float, str, int, float, float, Optional[float]]:
         """
-        Calcule le facteur de rayonnement solaire direct non-linéaire et récupère le vent (km/h) et le DNI (W/m²).
-        Returns (factor: float, description: str, cloud_cover: int, wind_speed: float, solar_dni: float).
+        Calcule le facteur de rayonnement solaire direct non-linéaire et récupère le vent (km/h), le DNI (W/m²) et la T° max prévue.
+        Returns (factor: float, description: str, cloud_cover: int, wind_speed: float, solar_dni: float, max_temp_today: float|None).
         """
         try:
-            url = f"https://api.open-meteo.com/v1/forecast?latitude={self.latitude}&longitude={self.longitude}&current=temperature_2m,cloud_cover,weather_code,wind_speed_10m,direct_normal_irradiance"
+            url = f"https://api.open-meteo.com/v1/forecast?latitude={self.latitude}&longitude={self.longitude}&current=temperature_2m,cloud_cover,weather_code,wind_speed_10m,direct_normal_irradiance&daily=temperature_2m_max&timezone=auto&forecast_days=1"
             req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
             with urllib.request.urlopen(req, timeout=8) as response:
                 data = json.loads(response.read().decode('utf-8'))
                 current = data.get("current", {})
-                w_code = current.get("weather_code", 0)
+                daily = data.get("daily", {})
+                
                 cloud_cover = int(current.get("cloud_cover", 0))
                 wind_speed = float(current.get("wind_speed_10m", 0.0))
                 solar_dni = float(current.get("direct_normal_irradiance", 0.0))
+                
+                temps_max = daily.get("temperature_2m_max", [])
+                max_temp_today = float(temps_max[0]) if temps_max and temps_max[0] is not None else None
                 
                 # Modèle physique non-linéaire du rayonnement direct (atténuation quadratique)
                 factor = max(0.0, min(1.0, (1.0 - (cloud_cover / 100.0)) ** 2))
@@ -139,15 +143,15 @@ class WeatherService:
                     desc_texte = "Très couvert / Aucun rayonnement direct"
 
                 description = f"{desc_texte} (Nuages: {cloud_cover}%, DNI: {round(solar_dni, 1)} W/m², Vent: {round(wind_speed, 1)} km/h)"
-                res = (factor, description, cloud_cover, round(wind_speed, 1), round(solar_dni, 1))
+                res = (factor, description, cloud_cover, round(wind_speed, 1), round(solar_dni, 1), max_temp_today)
                 self.last_valid_weather = res
                 return res
         except Exception as e:
             print(f"ℹ️ API Open-Meteo temporairement indisponible ({e})")
             if self.last_valid_weather is not None:
-                f, desc, c, w, dni = self.last_valid_weather
-                return f, f"{desc} (Dernière valeur connue)", c, w, dni
-            return 1.0, "Indisponible (défaut 100%)", None, None, None
+                f, desc, c, w, dni, mt = self.last_valid_weather
+                return f, f"{desc} (Dernière valeur connue)", c, w, dni, mt
+            return 1.0, "Indisponible (défaut 100%)", None, None, None, None
 
     def get_forecast_next_hours(self, hours: int = 3) -> Tuple[Optional[float], Optional[float], str]:
         """

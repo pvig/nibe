@@ -1,6 +1,6 @@
 <script>
   import { updateConfig, sendVmcCommand } from '../lib/api.js';
-  let { live = null, sun = null, config = {} } = $props();
+  let { live = null, sun = null, config = {}, anticipation = null } = $props();
 
   const fmt = (v, unit) => v != null ? `${v} ${unit}` : `-- ${unit}`;
 
@@ -78,7 +78,11 @@
       {live ? Math.round((live.taux_fermeture || 0) * 100) + '%' : '-- %'}
     </div>
     <div class="card-subtext" id="subCaniculeMode">
-      {live?.mode_canicule ? '🔥 Mode Canicule' : 'Régulation normale'}
+      {#if anticipation?.active}
+        <span style="color: var(--accent-orange); font-weight: bold;">⚠️ Anticipation ({anticipation.max_temp}°C prev)</span>
+      {:else}
+        {live?.mode_canicule ? '🔥 Mode Canicule' : 'Régulation normale'}
+      {/if}
     </div>
   </div>
 

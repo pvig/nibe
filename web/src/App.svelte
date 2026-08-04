@@ -10,6 +10,7 @@
   // ── État réactif centralisé ──────────────────────────────────────────
   let live        = $state(null);
   let sun         = $state(null);
+  let anticipation = $state(null);
   let config      = $state({});
   let shutters    = $state({});
   let history     = $state([]);
@@ -45,6 +46,7 @@
       const data = await fetchLive();
       live     = data.live ?? null;
       sun      = data.sun  ?? null;
+      anticipation = data.anticipation ?? null;
       shutters = data.live?.shutters ?? {};
     } catch (e) {
       console.error('Erreur live:', e);
@@ -92,7 +94,7 @@
 <div class="container">
   <Header />
 
-  <KpiGrid {live} {sun} {config} />
+  <KpiGrid {live} {sun} {config} {anticipation} />
 
   <!-- Charts container -->
   <div class="charts-container">
