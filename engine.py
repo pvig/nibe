@@ -27,7 +27,9 @@ class ShutterAutomationEngine:
         min_motor_interval_minutes: int = 30,
         dni_seuil: float = 400.0,
         dni_hyst: float = 50.0,
-        dni_temp_int_seuil: float = 22.0
+        dni_temp_int_seuil: float = 22.0,
+        temp_canicule_low: float = 27.0,
+        temp_canicule_high: float = 30.0
     ):
         self.nibe = nibe_client or NibeClient()
         self.weather = weather_service or WeatherService()
@@ -44,6 +46,8 @@ class ShutterAutomationEngine:
         self.dni_seuil = dni_seuil
         self.dni_hyst = dni_hyst
         self.dni_temp_int_seuil = dni_temp_int_seuil
+        self.temp_canicule_low = temp_canicule_low
+        self.temp_canicule_high = temp_canicule_high
 
     def run(self) -> None:
         """Exécute une itération de régulation."""
@@ -89,6 +93,8 @@ class ShutterAutomationEngine:
                 self.temp_ext_low -= 2.0
                 self.temp_ext_high -= 2.0
                 self.dni_temp_int_seuil -= 2.0
+                self.temp_canicule_low -= 2.0
+                self.temp_canicule_high -= 2.0
         
         etat_memoire["anticipation_mode"] = anticipation_mode
         if max_temp_today is not None:
@@ -162,12 +168,12 @@ class ShutterAutomationEngine:
             if amplification_solaire > 1.0 and taux_fermeture_solaire > 0:
                 taux_fermeture_solaire = min(1.0, taux_fermeture_solaire * amplification_solaire)
 
-            # 4. Protection conductive canicule (T° ext > 28°C)
-            # Au-dessus de 28°C, la conduction de l'air chaud impose une fermeture progressive même à l'ombre
-            if t_decision > 28.0:
-                prog_canicule = min(1.0, (t_decision - 28.0) / (33.0 - 28.0))
-                taux_canicule = prog_canicule ** 2
-                print(f"🔥 Mode Canicule Actif (T° ext = {t_decision}°C > 28°C) -> Fermeture conductive de protection : {int(taux_canicule * 100)}%")
+            # 4. Protection conductive canicule
+            # Au-dessus de temp_canicule_low, la conduction de l'air chaud impose une fermeture progressive même à l'ombre (linéaire)
+            if t_decision > self.temp_canicule_low:
+                prog_canicule = min(1.0, (t_decision - self.temp_canicule_low) / (self.temp_canicule_high - self.temp_canicule_low))
+                taux_canicule = prog_canicule  # Linéaire, plus agressif
+                print(f"🔥 Mode Canicule Actif (T° ext = {t_decision}°C > {self.temp_canicule_low}°C) -> Fermeture conductive de protection : {int(taux_canicule * 100)}%")
             else:
                 taux_canicule = 0.0
 
@@ -214,8 +220,8 @@ class ShutterAutomationEngine:
             is_daytime = (heure_actuelle >= heure_lever_5m and heure_actuelle < heure_coucher_5m)
 
             if is_daytime:
-                if t_decision > 28.0:
-                    print(f"🔥 Canicule (>28°C) : Protection conductive appliquée aux volets canicule ({', '.join(self.canicule_protection_shutters)}). Les volets des plantes (ex: cuisine) restent ouverts.")
+                if t_decision > self.temp_canicule_low:
+                    print(f"🔥 Canicule (>{self.temp_canicule_low}°C) : Protection conductive appliquée aux volets canicule ({', '.join(self.canicule_protection_shutters)}).")
                     for nom in self.canicule_protection_shutters:
                         if nom in self.heat_protection_shutters:
                             commandes_a_passer[nom] = pos_target_str
