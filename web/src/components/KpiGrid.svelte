@@ -79,7 +79,7 @@
     </div>
     <div class="card-subtext" id="subCaniculeMode">
       {#if anticipation?.active}
-        <span style="color: var(--accent-orange); font-weight: bold;">⚠️ Anticipation ({anticipation.max_temp}°C prev)</span>
+        <span class="badge-anticipation">⚠️ Anticipation ({anticipation.max_temp}°C prev)</span>
       {:else}
         {live?.mode_canicule ? '🔥 Mode Canicule' : 'Régulation normale'}
       {/if}
@@ -118,20 +118,21 @@
 </div>
 
 <style>
+  .badge-anticipation { color: var(--accent-orange); font-weight: 700; }
   .nowrap { white-space: nowrap; }
   .val-ext { white-space: nowrap; color: var(--accent-orange); }
   .val-int { white-space: nowrap; color: var(--accent-blue); }
   .val-cloud { white-space: nowrap; color: var(--text-primary); }
   .val-wind { white-space: nowrap; color: var(--accent-cyan); }
-  .emoji-large { font-size: 1.2rem; }
-  .text-medium { font-size: 1.4rem; }
+  .emoji-large { font-size: 1.1rem; }
+  .text-medium { font-size: 1.2rem; }
   .lh-14 { line-height: 1.4; }
   
-  .slider-container { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem; }
-  .slider-container input[type="range"] { flex: 1; accent-color: var(--accent-orange); cursor: pointer; }
-  .slider-val { font-size: 1rem; color: var(--accent-orange); font-weight: 600; min-width: 2.5rem; text-align: right; }
+  .slider-container { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.25rem; }
+  .slider-container input[type="range"] { flex: 1; accent-color: var(--accent-orange); cursor: pointer; height: 24px; touch-action: manipulation; }
+  .slider-val { font-size: 0.95rem; color: var(--accent-orange); font-weight: 600; min-width: 2.2rem; text-align: right; }
   
-  .vmc-container { display: flex; align-items: center; justify-content: space-between; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 0.5rem; margin-top: 0.5rem; }
-  .vmc-select { background: var(--bg-card); color: var(--text-primary); border: 1px solid rgba(255,255,255,0.2); border-radius: 4px; padding: 2px 5px; font-size: 0.85rem; outline: none; cursor: pointer; flex: 1; margin-left: 0.5rem; }
+  .vmc-container { display: flex; align-items: center; justify-content: space-between; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 0.4rem; margin-top: 0.3rem; flex-wrap: wrap; gap: 0.25rem; }
+  .vmc-select { background: var(--bg-card); color: var(--text-primary); border: 1px solid rgba(255,255,255,0.2); border-radius: 4px; padding: 3px 6px; font-size: 0.75rem; outline: none; cursor: pointer; flex: 1; min-width: 100px; touch-action: manipulation; }
   .vmc-select:focus { border-color: var(--accent-blue); }
 </style>

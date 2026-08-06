@@ -68,17 +68,18 @@
   }
 
   function buildOptions(series) {
+    const isMobile = typeof window !== 'undefined' && window.innerWidth < 640;
     return {
       series,
       chart: {
-        type: 'line', height: 480, background: 'transparent',
+        type: 'line',
+        height: isMobile ? 310 : 440,
+        background: 'transparent',
         toolbar: makeToolbar(),
         zoom: { enabled: true, type: 'x', autoScaleYaxis: true },
         animations: { enabled: false },
         events: {
           legendClick: function(chartContext, seriesIndex) {
-            // Fired only on user click — safe to persist state.
-            // Delay to let ApexCharts toggle collapsedSeriesIndices first.
             setTimeout(() => {
               const collapsed = chartContext.w.globals.collapsedSeriesIndices || [];
               const s = chartContext.w.config.series || [];
@@ -90,7 +91,13 @@
         ...makeLocale()
       },
       theme: apexTheme,
-      grid: apexGrid,
+      grid: {
+        ...apexGrid,
+        padding: {
+          left: isMobile ? 2 : 10,
+          right: isMobile ? 2 : 10
+        }
+      },
       stroke: {
         curve: series.map((s,i) => 'straight'),
         width: series.map((s,i) => i === 2 ? 1 : 2),
@@ -103,16 +110,62 @@
       },
       xaxis: {
         categories: labels,
-        tickAmount: 12,
-        labels: { style: { colors: '#94a3b8' }, rotate: -30, hideOverlappingLabels: true },
+        tickAmount: isMobile ? 5 : 12,
+        labels: {
+          style: { colors: '#94a3b8', fontSize: isMobile ? '10px' : '12px' },
+          rotate: isMobile ? -45 : -30,
+          hideOverlappingLabels: true
+        },
         axisBorder: { color: 'rgba(255,255,255,0.08)' },
         axisTicks: { color: 'rgba(255,255,255,0.08)' }
       },
       yaxis: [
-        { min: getTempMin, max: getTempMax, seriesName: 'T° Extérieure (°C)', title: { text: 'Température (°C)', style: { color: '#f97316', fontWeight: 600 } }, labels: { style: { colors: '#f97316' }, formatter: v => v != null ? v.toFixed(1)+'°' : '' }, axisBorder: { show: true, color: '#f97316' } },
+        {
+          min: getTempMin,
+          max: getTempMax,
+          seriesName: 'T° Extérieure (°C)',
+          title: {
+            text: isMobile ? undefined : 'Température (°C)',
+            style: { color: '#f97316', fontWeight: 600 }
+          },
+          labels: {
+            style: { colors: '#f97316', fontSize: isMobile ? '10px' : '12px' },
+            formatter: v => v != null ? v.toFixed(0)+'°' : '',
+            padding: isMobile ? 2 : 6
+          },
+          axisBorder: { show: !isMobile, color: '#f97316' }
+        },
         { min: getTempMin, max: getTempMax, seriesName: 'T° Extérieure (°C)', show: false },
-        { seriesName: 'Nuages (%)', opposite: true, min: 0, max: 100, title: { text: '% Nuages / Volets', style: { color: '#94a3b8', fontWeight: 600 } }, labels: { style: { colors: '#94a3b8' }, formatter: v => v != null ? v.toFixed(0)+'%' : '' }, axisBorder: { show: true, color: '#94a3b8' } },
-        { seriesName: 'DNI Solaire (W/m²)', opposite: true, title: { text: 'Vent (km/h) / DNI (W/m²)', style: { color: '#06b6d4', fontWeight: 600 } }, labels: { style: { colors: '#06b6d4' }, formatter: v => v != null ? v.toFixed(0) : '' }, axisBorder: { show: true, color: '#06b6d4' } },
+        {
+          seriesName: 'Nuages (%)',
+          opposite: true,
+          min: 0,
+          max: 100,
+          title: {
+            text: isMobile ? undefined : '% Nuages / Volets',
+            style: { color: '#94a3b8', fontWeight: 600 }
+          },
+          labels: {
+            style: { colors: '#94a3b8', fontSize: isMobile ? '10px' : '12px' },
+            formatter: v => v != null ? v.toFixed(0)+'%' : '',
+            padding: isMobile ? 2 : 6
+          },
+          axisBorder: { show: !isMobile, color: '#94a3b8' }
+        },
+        {
+          seriesName: 'DNI Solaire (W/m²)',
+          opposite: true,
+          show: !isMobile,
+          title: {
+            text: isMobile ? undefined : 'Vent (km/h) / DNI (W/m²)',
+            style: { color: '#06b6d4', fontWeight: 600 }
+          },
+          labels: {
+            style: { colors: '#06b6d4', fontSize: isMobile ? '10px' : '12px' },
+            formatter: v => v != null ? v.toFixed(0) : ''
+          },
+          axisBorder: { show: !isMobile, color: '#06b6d4' }
+        },
         { seriesName: 'Vent (km/h)', show: false },
         ...Array.from({ length: series.length - 5 }, () => ({ seriesName: 'Nuages (%)', show: false }))
       ],
@@ -128,7 +181,12 @@
           return v.toFixed(0) + ' %';
         }}
       },
-      legend: { position: 'top', labels: { colors: '#f8fafc' }, itemMargin: { horizontal: 8 } },
+      legend: {
+        position: 'top',
+        fontSize: isMobile ? '11px' : '12px',
+        labels: { colors: '#f8fafc' },
+        itemMargin: { horizontal: isMobile ? 4 : 8, vertical: isMobile ? 2 : 5 }
+      },
       markers: { size: 0 }
     };
   }
@@ -148,7 +206,6 @@
     let saved = [];
     try { 
       saved = JSON.parse(localStorage.getItem('nibe_hidden_master')) || []; 
-      // Auto-recovery from previous bug: if T° Ext is hidden along with others, it's likely corrupted.
       if (saved.includes('T° Extérieure (°C)') && saved.includes('Nuages (%)')) {
         saved = [];
         localStorage.removeItem('nibe_hidden_master');
@@ -156,9 +213,6 @@
     } catch(e){}
 
     const newSeries = buildSeries().map(s => ({ ...s, hidden: saved.includes(s.name) }));
-
-    // IMPORTANT: Pour les graphiques mixtes (line/area), updateSeries a un bug dans ApexCharts 
-    // qui fait disparaitre les courbes "smooth". Il faut TOUJOURS utiliser updateOptions.
     chart.updateOptions(buildOptions(newSeries), false, false);
   });
 
@@ -192,10 +246,10 @@
       <button class="btn-refresh control-btn" onclick={onRefresh}>🔄 Actualiser</button>
       <button
         class="btn-refresh control-btn"
+        class:btn-disabled={!tooltipEnabled}
         id="btnToggleTooltip"
         onclick={toggle}
         title="Activer/désactiver les infos au survol"
-        style:opacity={tooltipEnabled ? '1' : '0.5'}
       >
         💬 Tooltip {tooltipEnabled ? 'ON' : 'OFF'}
       </button>
@@ -203,3 +257,8 @@
   </div>
   <div class="chart-wrapper" bind:this={el}></div>
 </div>
+
+<style>
+  .btn-disabled { opacity: 0.5; }
+  .highlight { color: var(--accent-orange); font-weight: 600; }
+</style>
