@@ -2,7 +2,7 @@
   import ShutterCard from './ShutterCard.svelte';
   import { sendShutterCommand } from '../lib/api.js';
 
-  let { shutters = {}, onCommandSent } = $props();
+  let { shutters = {}, lockedShutters = {}, onCommandSent } = $props();
 
   let globalLoading = $state(false);
 
@@ -20,7 +20,7 @@
   }
 
   const SHUTTER_NAMES = ['salon', 'bureau', 'cuisine', 'chambre'];
-  const shutterEntries = $derived(SHUTTER_NAMES.map(name => [name, shutters[name] || 'N/A']));
+  const shutterEntries = $derived(SHUTTER_NAMES.map(name => [name, shutters[name] || 'N/A', lockedShutters[name] || false]));
 </script>
 
 <div class="section-header">
@@ -37,8 +37,8 @@
   {#if shutterEntries.length === 0}
     <p class="empty-message">Aucun volet synchronisé.</p>
   {:else}
-    {#each shutterEntries as [name, shutterState]}
-      <ShutterCard {name} {shutterState} {onCommandSent} />
+    {#each shutterEntries as [name, shutterState, isLocked]}
+      <ShutterCard {name} {shutterState} {isLocked} {onCommandSent} />
     {/each}
   {/if}
 </div>

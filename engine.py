@@ -237,8 +237,8 @@ class ShutterAutomationEngine:
                     for nom in self.tydom.devices.keys():
                         commandes_a_passer[nom] = "OPEN"
                 
-                if anticipation_mode:
-                    print("⚠️ Anticipation Canicule : Fermeture préventive complète du volet de la chambre (Nord).")
+                if anticipation_mode and t_decision >= 25.0:
+                    print(f"⚠️ Anticipation Canicule (T° ext = {t_decision}°C >= 25°C) : Fermeture préventive complète du volet de la chambre (Nord).")
                     commandes_a_passer["chambre"] = "CLOSE"
             else:
                 print("🌙 Période nocturne (Régulation thermique diurne au repos).")
@@ -295,7 +295,12 @@ class ShutterAutomationEngine:
             print(f"⏳ Moteurs au repos (dernier déclenchement il y a {int(elapsed_since_motor/60)} min). Échantillon 5 min enregistré. Prochain mouvement autorisé dans ~{mins_restantes} min.")
             self.state_store.save(etat_memoire)
         else:
+            locked_shutters = etat_memoire.get("locked_shutters", {})
             for nom, action_voulue in commandes_a_passer.items():
+                if locked_shutters.get(nom):
+                    print(f"  🔒 Volet {nom.capitalize()} : Verrouillé. Commande automatique '{action_voulue}' ignorée.")
+                    continue
+
                 derniere_action = shutters_state.get(nom)
 
                 # Ne jamais envoyer un ordre physique si le volet est déjà à la position voulue,

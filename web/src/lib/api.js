@@ -26,6 +26,13 @@ export const sendShutterCommand = (name, action) =>
     body: JSON.stringify({ name, action })
   }).then(r => r.json());
 
+export const toggleShutterLock = (name, locked) =>
+  fetch('/api/shutter/lock', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name, locked })
+  }).then(r => r.json());
+
 export const sendVmcCommand = (mode) =>
   fetch('/api/vmc/command', {
     method: 'POST',

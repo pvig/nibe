@@ -13,6 +13,7 @@
   let anticipation = $state(null);
   let config      = $state({});
   let shutters    = $state({});
+  let lockedShutters = $state({});
   let history     = $state([]);
   let actions     = $state([]);
   let timeRange   = $state(localStorage.getItem('nibe_timeRange') || '24');
@@ -48,6 +49,7 @@
       sun      = data.sun  ?? null;
       anticipation = data.anticipation ?? null;
       shutters = data.live?.shutters ?? {};
+      lockedShutters = data.live?.locked_shutters ?? {};
     } catch (e) {
       console.error('Erreur live:', e);
     }
@@ -103,6 +105,7 @@
 
   <ShuttersSection
     {shutters}
+    {lockedShutters}
     onCommandSent={() => setTimeout(refreshAll, 600)}
   />
 

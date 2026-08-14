@@ -20,6 +20,7 @@ class StateStore:
                 with open(self.filepath, "r") as f:
                     data = json.load(f)
                     data.setdefault("shutters", {})
+                    data.setdefault("locked_shutters", {})
                     data.setdefault("config", {"solar_response_factor": 0.0, "vmc_mode": "AUTO"})
                     data.setdefault("last_sunset_trigger_date", "")
                     data.setdefault("last_sunrise_trigger_date", "")
@@ -32,6 +33,7 @@ class StateStore:
         return {
             "config": {"solar_response_factor": 0.0, "vmc_mode": "AUTO"},
             "shutters": {},
+            "locked_shutters": {},
             "last_sunset_trigger_date": "",
             "last_sunrise_trigger_date": "",
             "last_motor_action_time": 0,

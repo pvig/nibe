@@ -57,6 +57,8 @@ class RequestHandler(BaseHTTPRequestHandler):
 
         if path == "/api/shutter/command":
             self.handle_api_shutter_command()
+        elif path == "/api/shutter/lock":
+            self.handle_api_shutter_lock()
         elif path == "/api/vmc/command":
             self.handle_api_vmc_command()
         elif path == "/api/config":
@@ -80,10 +82,13 @@ class RequestHandler(BaseHTTPRequestHandler):
 
             etat_memoire = self.state_store.load()
             shutters_state = etat_memoire.get("shutters", {})
+            locked_shutters = etat_memoire.get("locked_shutters", {})
 
             if name == "all":
                 success_count = 0
                 for device_name in self.tydom.devices.keys():
+                    if locked_shutters.get(device_name):
+                        continue
                     res = self.tydom.send_command(device_name, action)
                     shutters_state[device_name] = action
                     self.db_logger.log_action(
@@ -96,8 +101,11 @@ class RequestHandler(BaseHTTPRequestHandler):
                 
                 etat_memoire["shutters"] = shutters_state
                 self.state_store.save(etat_memoire)
-                self.send_json_response({"success": True, "message": f"Ordre '{action}' envoyé aux volets"})
+                self.send_json_response({"success": True, "message": f"Ordre '{action}' envoyé aux volets (sauf verrouillés)"})
             else:
+                if locked_shutters.get(name):
+                    self.send_json_response({"success": False, "error": f"Le volet {name} est verrouillé."}, status=403)
+                    return
                 res = self.tydom.send_command(name, action)
                 shutters_state[name] = action
                 etat_memoire["shutters"] = shutters_state
@@ -110,6 +118,37 @@ class RequestHandler(BaseHTTPRequestHandler):
                 self.send_json_response({"success": True, "message": f"Ordre '{action}' envoyé au volet {name}"})
         except Exception as e:
             print(f"⚠️ Erreur commande volet Web : {e}")
+            self.send_json_response({"success": False, "error": str(e)}, status=500)
+
+    def handle_api_shutter_lock(self):
+        """Verrouille ou déverrouille un volet."""
+        try:
+            content_length = int(self.headers.get('Content-Length', 0))
+            body = self.rfile.read(content_length).decode('utf-8')
+            data = json.loads(body) if body else {}
+
+            name = str(data.get("name", "")).lower()
+            locked = bool(data.get("locked", False))
+
+            if not name:
+                self.send_json_response({"success": False, "error": "Paramètre 'name' manquant"}, status=400)
+                return
+
+            etat_memoire = self.state_store.load()
+            locked_shutters = etat_memoire.get("locked_shutters", {})
+            locked_shutters[name] = locked
+            etat_memoire["locked_shutters"] = locked_shutters
+            self.state_store.save(etat_memoire)
+
+            action_str = "Verrouillage" if locked else "Déverrouillage"
+            self.db_logger.log_action(
+                shutter_name=name,
+                action="LOCK" if locked else "UNLOCK",
+                reason=f"{action_str} Web"
+            )
+            self.send_json_response({"success": True, "message": f"Volet {name} {'verrouillé' if locked else 'déverrouillé'}"})
+        except Exception as e:
+            print(f"⚠️ Erreur verrouillage volet Web : {e}")
             self.send_json_response({"success": False, "error": str(e)}, status=500)
 
     def handle_api_vmc_command(self):
@@ -175,6 +214,7 @@ class RequestHandler(BaseHTTPRequestHandler):
         live_data = self.db_logger.get_live_state()
         sunrise, sunset = self.weather.get_sun_times()
         state = self.state_store.load()
+        live_data["locked_shutters"] = state.get("locked_shutters", {})
         
         response = {
             "live": live_data,
