@@ -138,8 +138,24 @@ class ShutterAutomationEngine:
             cloud_lisse = sum(s["cloud_cover"] for s in samples) / len(samples)
             facteur_soleil_lisse = max(0.0, min(1.0, (1.0 - (cloud_lisse / 100.0)) ** 2))
 
+            # Calcul de la vitesse de variation de la T° ext (°C/h) sur les 3 derniers échantillons (~15 min)
+            # ponytail: naive 3-sample finite difference for dT/dt (15 min window). Robust against single-sample noise while remaining fast.
+            recent_samples = samples[-3:]
+            if len(recent_samples) >= 2:
+                dt_h = (recent_samples[-1]["timestamp"] - recent_samples[0]["timestamp"]) / 3600.0
+                d_text_dt = (recent_samples[-1]["t_ext"] - recent_samples[0]["t_ext"]) / dt_h if dt_h > 0 else 0.0
+            else:
+                d_text_dt = 0.0
+
+            # Prise en compte de la dérivée positive avec transformation quadratique (vitesse^2)
+            # Écrase les variations lentes (< 0.5°C/h) et amplifie fortement les hausses rapides (> 1.5°C/h)
+            v_positive = max(0.0, d_text_dt)
+            t_anticipation = v_positive ** 2
+            t_decision = t_ext + t_anticipation
+
             str_presence = f"🏠 Mode Présent (Reg 137 = {val_presence})" if not est_absent else f"✈️ Mode Absent / Vacances (Reg 137 = {val_presence})"
-            print(f"🌡️  T° Ext instantanée (BT1) : {t_ext} °C | Intérieure (BT50) : {t_int} °C | {str_presence}")
+            str_vitesse = f" | Vitesse T° : {d_text_dt:+.2f} °C/h (Boost quad: +{t_anticipation:.1f}°C → T° eff: {t_decision:.1f} °C)" if d_text_dt > 0 else f" | Vitesse T° : {d_text_dt:+.2f} °C/h"
+            print(f"🌡️  T° Ext instantanée (BT1) : {t_ext} °C{str_vitesse} | Intérieure (BT50) : {t_int} °C | {str_presence}")
             print(f"🌤️  Nuages : {cloud_cover}% | ☀️ DNI : {solar_dni} W/m² | 💨 Vent : {wind_speed} km/h | Lissé 1h : {int(cloud_lisse)}%")
 
             # Calcul de la position astronomique du soleil (Azimut & Élévation)
@@ -147,8 +163,6 @@ class ShutterAutomationEngine:
             str_exposition = "Façade Exposée au Soleil Direct" if facade_exposee else "Façade à l'Ombre (Soleil Hors Fenêtre)"
             print(f"🧭 Position Solaire -> Élévation: {elev_soleil}° | Azimut: {azim_soleil}° ({str_exposition})")
 
-            # La température utilise la mesure réelle instantanée (pas de retard), seul l'ensoleillement est lissé sur 1h
-            t_decision = t_ext
             # Si le soleil est hors de la fenêtre d'exposition directe (Azimut [85°, 240°] et Élévation >= 10°), l'impact direct est nul
             facteur_soleil_decision = facteur_soleil_lisse if facade_exposee else 0.0
 

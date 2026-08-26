@@ -35,6 +35,7 @@ graph LR
 * ☀️ **Protection anti-chaleur progressive & Filtrage d'Azimut** : La protection solaire s'active lorsque le soleil est orienté vers les façades ciblées (Azimut entre **85° et 240°**, soit de ~09h00 à ~16h45 avec marge de sécurité, et élévation $\ge 10^\circ$). Dès 16h45, lorsque le soleil passe derrière la maison, les volets s'ouvrent à 100%.
 * 🔥 **Mode Canicule Conductif ($T_\text{ext} > 28\ ^\circ\text{C}$)** : Lorsque la température extérieure dépasse **28 °C**, une fermeture conductive de protection s'applique **exclusivement aux volets de la liste ciblée** (`salon`, `bureau`). Les autres volets (`cuisine`, etc.) restent **100% ouverts** en journée pour garantir la lumière naturelle indispensable aux plantes d'intérieur.
 * 🍃 **Ouverture automatique** : Lorsque la température extérieure redescend sous **21 °C**, les volets s'ouvrent à nouveau.
+* 📈 **Anticipation thermique par dérivée ($dT/dt$)** : Calcul de la vitesse de variation de $T_\text{ext}$ sur 15 min (3 échantillons) avec transformation quadratique ($v^2$) pour anticiper préventivement les fortes montées en température.
 * 🤝 **Respect de l'utilisateur** : Le script mémorise ses actions dans un fichier `shutter_state.json`. S'il a déjà fermé un volet et que vous l'ouvrez manuellement, il ne viendra pas vous contredire !
 * 🔄 **Support des câblages inversés** : Option `INVERT_COVER_WIRING` intégrée si le câblage électrique de vos volets vers le module est inversé (`UP` = fermeture).
 
